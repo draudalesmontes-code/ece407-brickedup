@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -18,9 +20,13 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // GEOAPIFY key -> used by BuildConfig.GEOAPIFY_API_KEY in MainActivity
-        val geoKey = providers.gradleProperty("GEOAPIFY_API_KEY").orNull ?: "DEFAULT_GEOAPIFY"
-        buildConfigField("String", "GEOAPIFY_API_KEY", "\"$geoKey\"")
+        val secretsFile = rootProject.file("secrets.properties")
+        val secretsProps = Properties()
+        if (secretsFile.exists()) {
+            secretsFile.inputStream().use { secretsProps.load(it) }
+        }
+        val geoKey = secretsProps.getProperty("GEOAPIFY_API_KEY") ?: "DEFAULT_GEOAPIFY"
+        resValue("string", "geoapify_api_key", geoKey)
     }
 
     packaging {
@@ -60,7 +66,7 @@ configurations.all {
 
 secrets {
     // make sure this file exists at: app/secrets.properties
-    defaultPropertiesFileName = "secrets.properties"
+    propertiesFileName = "secrets.properties"
 }
 
 dependencies {

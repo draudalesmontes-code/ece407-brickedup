@@ -1,6 +1,5 @@
 package com.cs407.brickcollector
-
-
+//43 , -89.4
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
@@ -28,10 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -66,6 +62,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val geoKey = getString(R.string.geoapify_api_key)
+
 
         // Check if database file exists in assets
         try {
@@ -84,7 +82,7 @@ class MainActivity : ComponentActivity() {
         Log.d("LegoTest", "Found: ${set?.name ?: "Not found"}")
 
         setContent {
-            AppNavigation()
+            AppNavigation(vm)
         }
 
         permissionLauncher = registerForActivityResult(
@@ -101,7 +99,7 @@ class MainActivity : ComponentActivity() {
                 lifecycleScope.launch {
                     val city = vm.resolveCityAssumingPermission(
                         appContext = applicationContext,
-                        geoapifyApiKey = BuildConfig.GEOAPIFY_API_KEY
+                        geoapifyApiKey = geoKey
                     )
 
                     Log.d("CITY", "Resolved city: $city")
@@ -117,7 +115,7 @@ class MainActivity : ComponentActivity() {
         }
 
         // 4) Initialize VM with context + API key
-        vm.initialize(applicationContext, BuildConfig.GEOAPIFY_API_KEY)
+        vm.initialize(applicationContext, geoKey)
 
         // 5) If no permission yet, ask. Otherwise go ahead and resolve.
         if (!vm.hasLocationPermission(this)) {
@@ -132,7 +130,7 @@ class MainActivity : ComponentActivity() {
             lifecycleScope.launch {
                 val city = vm.resolveCityAssumingPermission(
                     appContext = applicationContext,
-                    geoapifyApiKey = BuildConfig.GEOAPIFY_API_KEY
+                    geoapifyApiKey = geoKey
                 )
                 val Latlng = vm.fetchLatLngOnce()
                 Toast.makeText(this@MainActivity, "Latlng: $Latlng", Toast.LENGTH_SHORT).show()
@@ -173,7 +171,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation() {
+fun AppNavigation(vm: callLocationVM) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -252,6 +250,7 @@ fun AppNavigation() {
             }
             composable("buy") {
                 BuyScreen(
+                    vm = vm,
                     onNavigateToSettings = { navController.navigate("settings") }
                 )
             }

@@ -2,10 +2,8 @@ package com.cs407.location.uiScreens
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -64,7 +62,16 @@ fun qrCameraScreen(
 
     val qr by viewModel.qrResult.collectAsStateWithLifecycle()
 
+    LaunchedEffect(qr) {
+        val value = qr
+        if (value != null) {
+            // optional debug toast
 
+            onQrScanned(value)
+            // If you want to prevent multiple triggers while the code stays in view,
+            // you can clear the result in the ViewModel (see note below).
+        }
+    }
 
     if (hasCamPermission && controller != null) {
         AndroidView(
