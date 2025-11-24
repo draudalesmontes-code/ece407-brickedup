@@ -4,7 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
-// moved to User.kt
+// moved to LegoSet.kt
 /**
 @Entity(
     indices = [Index(

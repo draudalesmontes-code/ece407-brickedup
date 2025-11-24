@@ -22,6 +22,8 @@ data class User(
     val username: String = "",
 
     val email: String = "",
+
+    val city: String? = null
 )
 
 @Entity(

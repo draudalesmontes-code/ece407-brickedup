@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.cs407.brickcollector.R
 import com.cs407.brickcollector.models.UserDatabase
 import com.cs407.brickcollector.models.User
+import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.brickcollector.models.UserState
 import kotlinx.coroutines.runBlocking
 import com.google.firebase.auth.FirebaseAuth
@@ -250,8 +251,7 @@ fun LoginPage(
                 db.userDao().insert(User(userUID = signedInUser.uid, username = signedInUser.displayName!!))
                 user = db.userDao().getByUID(signedInUser.uid)
             }
-            // Safely call the navigation callback.
-            loginButtonClick(UserState(user!!.userId, user.username!!, user.userUID))
+            loginButtonClick(UserState(user!!.userId, user.username, user.userUID))
         }
     }
     Scaffold(modifier = modifier) { innerPadding ->
@@ -284,12 +284,12 @@ fun SignUpScreen (
 ) {
     var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
-    var state by remember { mutableStateOf("") }
     var city by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     var isLoading by remember { mutableStateOf(false) }
+    val userFirestore = remember { UserFirestore() }
 
     val context = LocalContext.current
     val db = UserDatabase.getDatabase(context)
@@ -323,7 +323,7 @@ fun SignUpScreen (
         Button(
             onClick = {
                 // Validation logic
-                if (email.isBlank() || name.isBlank() || state.isBlank() || password.isBlank()) {
+                if (email.isBlank() || name.isBlank() ||  password.isBlank()) {
                     error = "Please fill all required fields."
                     return@Button
                 }
@@ -337,12 +337,25 @@ fun SignUpScreen (
                     if (isSuccess && firebaseUser != null) {
                         updateName(name) { nameSuccess, nameException ->
                             if (nameSuccess) {
-                                coroutineScope.launch {
-                                    // Storing the new user in Room DB
-                                    db.userDao().insert(User(userUID = firebaseUser.uid, username = name))
-                                    val user = db.userDao().getByUID(firebaseUser.uid)
-                                    onSignUpSuccess(UserState(user!!.userId, name, firebaseUser.uid))
+                                // store user's name and city in firestore
+                                userFirestore.saveUserToFireStore(
+                                    user = firebaseUser,
+                                    name = name,
+                                    city = city.ifBlank { null }
+                                ) { firestoreSuccess, firestoreException ->
+                                    if (firestoreSuccess) {
+                                        coroutineScope.launch {
+                                            // Storing the new user in Room DB
+                                            db.userDao().insert(User(userUID = firebaseUser.uid, username = name, city = city.ifBlank{null}))
+                                            val user = db.userDao().getByUID(firebaseUser.uid)
+                                            onSignUpSuccess(UserState(user!!.userId, name, firebaseUser.uid))
+                                        }
+                                    } else {
+                                        error = firestoreException?.message
+                                        isLoading = false
+                                    }
                                 }
+
                             } else {
                                 error = nameException?.message ?: "Failed to set user name."
                                 isLoading = false
