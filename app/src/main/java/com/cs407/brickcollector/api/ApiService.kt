@@ -22,17 +22,21 @@ object ApiService {
     fun getMySets(): List<LegoSet> {
         // TODO: Backend implementation - fetch from database
         // For now, return mock data
+
+
         return listOf(
-            LegoSet("Castle Set", 1, 49.99),
-            LegoSet("Space Station", 2, 89.99),
-            LegoSet("City Builder", 3, 129.99),
-            LegoSet("Pirate Ship", 4, 159.99),
-            LegoSet("Fire Station", 1, 39.99),
-            LegoSet("Castle Set", 1, 49.99),
-            LegoSet("Space Station", 2, 89.99),
-            LegoSet("City Builder", 3, 129.99),
-            LegoSet("Pirate Ship", 4, 159.99),
-            LegoSet("Fire Station", 1, 39.99)
+            LegoSet("Darth Maul Bust", 1, 899.99, "https://images.brickset.com/sets/images/10018-1.jpg"),
+            LegoSet("Winter Village Station", 2, 170.00, "https://images.brickset.com/sets/images/10259-1.jpg"),
+            LegoSet("Millenium Falcon", 3, 849.99, "https://images.brickset.com/sets/images/75192-1.jpg"),
+            LegoSet("French Cafe", 4, 79.99, "https://images.brickset.com/sets/images/10362-1.jpg"),
+            LegoSet("Happy Plants", 1, 19.99, "https://images.brickset.com/sets/images/10349-1.jpg"),
+            LegoSet("Tiny Plants", 1, 49.99, "https://images.brickset.com/sets/images/10329-1.jpg"),
+            LegoSet("Christmas Tree", 2, 39.99, "https://images.brickset.com/sets/small/40573-1.jpg"),
+            LegoSet("Up House", 3, 59.99, "https://images.brickset.com/sets/images/43217-1.jpg"),
+            LegoSet("Light House", 4, 259.99, "https://images.brickset.com/sets/images/21335-1.jpg"),
+            LegoSet("Neuschwanstein Castle", 1, 39.99, "https://images.brickset.com/sets/images/21063-1.jpg")
+
+
         )
     }
 
@@ -81,11 +85,10 @@ object ApiService {
     fun getWantList(): List<LegoSet> {
         // TODO: Backend implementation - fetch from database
         return listOf(
-            LegoSet("Castle Set", 1, 49.99),
-            LegoSet("Space Station", 2, 89.99),
-            LegoSet("City Builder", 3, 129.99),
-            LegoSet("Pirate Ship", 4, 159.99),
-            LegoSet("Fire Station", 1, 39.99)
+            LegoSet("French Cafe", 4, 79.99, "https://images.brickset.com/sets/images/10362-1.jpg"),
+            LegoSet("Happy Plants", 1, 19.99, "https://images.brickset.com/sets/images/10349-1.jpg"),
+            LegoSet("Tiny Plants", 1, 49.99, "https://images.brickset.com/sets/images/10329-1.jpg"),
+            LegoSet("Christmas Tree", 2, 39.99, "https://images.brickset.com/sets/images/40573-1.jpg")
         )
     }
 
@@ -130,8 +133,8 @@ object ApiService {
         // TODO: Backend implementation - search all available LEGO sets
         // This should search a comprehensive database of all LEGO sets
         return listOf(
-            LegoSet("Search Result 1", 1, 29.99),
-            LegoSet("Search Result 2", 2, 59.99)
+           // LegoSet("Search Result 1", 1, 29.99),
+            //LegoSet("Search Result 2", 2, 59.99)
         )
     }
 
@@ -229,9 +232,9 @@ object ApiService {
     fun getAvailableForPurchase(): List<LegoSet> {
         // TODO: Backend implementation - fetch all sell listings from other users
         return listOf(
-            LegoSet("For Sale 1", 1, 99.99),
-            LegoSet("For Sale 2", 2, 149.99),
-            LegoSet("For Sale 3", 3, 79.99)
+
+            LegoSet("Happy Plants", 1, 19.99, "https://images.brickset.com/sets/images/10349-1.jpg"),
+            LegoSet("Tiny Plants", 1, 49.99, "https://images.brickset.com/sets/images/10329-1.jpg")
         )
     }
 

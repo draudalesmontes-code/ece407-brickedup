@@ -1,12 +1,14 @@
 package com.cs407.brickcollector.ui.screens
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,48 +16,54 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.ElevatedCard
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconToggleButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Button
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.cs407.brickcollector.R
-import com.cs407.brickcollector.models.LegoSet
 import com.cs407.brickcollector.api.ApiService
+import com.cs407.brickcollector.models.LegoSet
+import com.cs407.location.viewModels.LatlngToCity
+import com.cs407.location.viewModels.callLocationVM
+import com.google.android.gms.maps.model.LatLng
 
 @Composable
 fun BuyScreen(
+    vm: callLocationVM,
     onNavigateToSettings: () -> Unit = {}
 ) {
+
     // State for the list of sets available for purchase - fetched from API
     var itemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -64,11 +72,15 @@ fun BuyScreen(
     var activeSearchQuery by remember { mutableStateOf("") }
     var showFilterWidget by remember { mutableStateOf(false) }
     var selectedSet by remember { mutableStateOf<LegoSet?>(null) }
+    val context = LocalContext.current
+    val geoKey = remember { context.getString(R.string.geoapify_api_key) }
+
+    var userCity by remember { mutableStateOf<String?>(null) }
 
     // Pagination variables
     val itemsPerPage = 7
     var currentPage by remember { mutableStateOf(1) }
-
+    var cardCities by remember { mutableStateOf<List<String?>>(emptyList()) }
     // Filter state variables
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
@@ -77,10 +89,36 @@ fun BuyScreen(
     var harryPotterChecked by remember { mutableStateOf(false) }
     var marvelChecked by remember { mutableStateOf(false) }
 
-    // Initial data fetch
+    //hardcoded test for future buy
+    //TODO: Remove once user database working hardcoded for now look at changes
     LaunchedEffect(Unit) {
-        // TODO: Make this async when backend implements suspend functions
-        itemList = ApiService.getAvailableForPurchase()
+        val allSets = ApiService.getAvailableForPurchase()
+        itemList = allSets.take(4)
+        val sellerLocation = listOf(
+            LatLng(25.779460, -80.207658),//miami
+            LatLng(43.072083, -89.408118),//madison
+            LatLng(37.327717, -121.889255),//cali
+        )
+        val cityVM = LatlngToCity()
+
+        val resolvedCities = mutableListOf<String?>()
+
+        for (coord in sellerLocation) {
+            cityVM.resolveAndStore(coord, apiKey = geoKey)
+
+
+            resolvedCities.add(cityVM.cityCounty.value)  // may be null if it fails
+        }
+
+        cardCities = resolvedCities
+
+        val userLatLng = vm.fetchLatLngOnce()
+        if (userLatLng != null) {
+            val userCityVM = LatlngToCity()
+            userCityVM.resolveAndStore(userLatLng, apiKey = geoKey)
+            userCity = userCityVM.cityCounty.value
+        }
+
         isLoading = false
     }
 
@@ -111,10 +149,20 @@ fun BuyScreen(
         isLoading = false
         currentPage = 1 // Reset to first page after filtering
     }
+    val combinedList = remember(itemList, cardCities, userCity) {
+        val pairs = itemList.zip(cardCities)  // assumes same size
 
+        if (userCity == null) {
+            pairs
+        } else {
+            pairs.sortedByDescending { (_, sellerCity) ->
+                sellerCity != null && sellerCity.equals(userCity, ignoreCase = true)
+            }
+        }
+    }
     // Calculate pagination values
-    val totalPages = remember(itemList, itemsPerPage) {
-        ((itemList.size + itemsPerPage - 1) / itemsPerPage).coerceAtLeast(1)
+    val totalPages = remember(combinedList, itemsPerPage) {
+        ((combinedList.size + itemsPerPage - 1) / itemsPerPage).coerceAtLeast(1)
     }
 
     // Reset to page 1 if current page exceeds total pages
@@ -123,11 +171,11 @@ fun BuyScreen(
     }
 
     // Get items for current page
-    val paginatedList = remember(itemList, currentPage, itemsPerPage) {
+    val paginatedList = remember(combinedList, currentPage, itemsPerPage) {
         val startIndex = (currentPage - 1) * itemsPerPage
-        val endIndex = (startIndex + itemsPerPage).coerceAtMost(itemList.size)
-        if (startIndex < itemList.size) {
-            itemList.subList(startIndex, endIndex)
+        val endIndex = (startIndex + itemsPerPage).coerceAtMost(combinedList.size)
+        if (startIndex < combinedList.size) {
+            combinedList.subList(startIndex, endIndex)
         } else {
             emptyList()
         }
@@ -349,13 +397,16 @@ fun BuyScreen(
                     }
                 }
             } else {
-                items(paginatedList) { set ->
+                itemsIndexed(paginatedList) { index,pair ->
+                    val (set, cityForCard) = pair
+
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { selectedSet = set },
                         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
                     ) {
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -363,10 +414,11 @@ fun BuyScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Image on the left
-                            Image(
-                                painter = painterResource(id = getDrawableId(set.imageId)),
-                                contentDescription = set.name,
-                                modifier = Modifier.size(80.dp)
+                            AsyncImage(
+                                model = set.link,
+                                contentDescription = "LEGO Set Image",
+                                modifier = Modifier.size(60.dp),
+                                contentScale = ContentScale.Crop
                             )
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -387,6 +439,19 @@ fun BuyScreen(
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = if (cityForCard != null)
+                                        "Seller city:  $cityForCard"
+                                    else
+                                        "Seller: No city",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
                                 Text(
                                     text = "$${set.price}",
                                     style = MaterialTheme.typography.titleMedium,
@@ -545,6 +610,7 @@ private fun getDrawableId(imageNumber: Int): Int {
         2 -> R.drawable.image2
         3 -> R.drawable.image3
         4 -> R.drawable.image4
+
         else -> R.drawable.image1 // Default fallback
     }
 }
