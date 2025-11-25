@@ -1,3 +1,16 @@
 <resources>
     <string name="app_name">BrickCollector</string>
+    <string name="user_database">userDatabase</string>
+    <string name="email_hint">Enter Email</string>
+    <string name="password_hint">Enter Password</string>
+    <string name="name_hint">Enter Name</string>
+    <string name="signup_button">Sign Up</string>
+    <string name="login_button">Log In</string>
+    <string name="to_signup_button">Don\'t have an account? Sign up</string>
+    <string name="confirm_button">Confirm</string>
+    <string name="invalid_email">Invalid Email Format</string>
+    <string name="invalid_password">Password should contain at least one lowercase letter, one uppercase letter, and one digit</string>
+    <string name="short_password">Password is too short</string>
+    <string name="empty_email">Email is empty</string>
+    <string name="empty_password">Password is empty</string>
 </resources>

@@ -35,10 +35,8 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
+import androidx.navigation.compose.*
+import com.cs407.brickcollector.ui.LoginPage
 import com.cs407.brickcollector.api.LegoDatabase
 import com.cs407.brickcollector.ui.screens.BuyScreen
 import com.cs407.brickcollector.ui.screens.MySetsScreen
@@ -235,9 +233,15 @@ fun AppNavigation(vm: callLocationVM) {
     ) { paddingValues ->
         NavHost(
             navController = navController,
-            startDestination = "my_sets",
+            startDestination = /*"my_sets"*/ "login",
             modifier = Modifier.padding(paddingValues)
         ) {
+            composable("login") {
+                LoginPage (
+                    modifier = Modifier,
+                    loginButtonClick = {navController.navigate("my_sets")}
+                )
+            }
             composable("my_sets") {
                 MySetsScreen(
                     onNavigateToSettings = { navController.navigate("settings") }
