@@ -238,7 +238,6 @@ fun LoginPage(
 ) {
     var currentPage by remember { mutableStateOf("login") } // "login" or "signup"
     val auth = Firebase.auth
-    val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     val db = UserDatabase.getDatabase(context)
 
@@ -302,20 +301,20 @@ fun SignUpScreen (
         Text("Create Account", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
         ErrorText(error)
 
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email *") })
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Name *") })
-        OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text("City (Optional)") })
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { stringResource(R.string.signup_email) })
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { stringResource(R.string.signup_name) })
+        OutlinedTextField(value = city, onValueChange = { city = it }, label = { stringResource(R.string.signup_city) })
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("Password *") },
+            label = { R.string.signup_password },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password *") },
+            label = { R.string.signup_confirm_password },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
@@ -331,7 +330,6 @@ fun SignUpScreen (
                     error = "Passwords do not match."
                     return@Button
                 }
-                // Add your existing email/password checks here if desired
                 isLoading = true
                 createAccount(email, password) { isSuccess, exception, firebaseUser ->
                     if (isSuccess && firebaseUser != null) {
@@ -369,11 +367,11 @@ fun SignUpScreen (
             },
             enabled = !isLoading
         ) {
-            Text("Sign Up")
+            Text(stringResource(R.string.signup_button))
         }
 
         TextButton(onClick = onNavigateToLogin) {
-            Text("Already have an account? Log In")
+            Text(stringResource(R.string.to_login_button))
         }
     }
 }

@@ -44,13 +44,40 @@ class UserFirestore {
     }
 
     /**
+     * Update city of user
+     */
+    fun updateCity(userUid: String, city: String?) {
+        firestore.collection("users").document(userUid)
+            .update("city", city)
+            .addOnSuccessListener { Log.d(TAG, "City updated") }
+            .addOnFailureListener { e -> Log.w(TAG, "Error updating city", e)
+            }
+    }
+
+    /**
+     * Get city of user
+     */
+    fun getCity(userUid: String, onComplete: (String?) -> Unit) {
+        firestore.collection("users").document(userUid)
+            .get()
+            .addOnSuccessListener { document ->
+                val city = document.get("city") as? String
+                onComplete(city)
+            }
+            .addOnFailureListener {
+                Log.w(TAG, "Error getting city")
+                onComplete(null)
+            }
+    }
+
+    /**
      * Add set to user's wantlist in firestore
      */
     fun addSetToWantList(userUid: String, set: LegoSet) {
         firestore.collection("users").document(userUid)
             .update("wantlist", FieldValue.arrayUnion(set))
             .addOnSuccessListener { Log.d(TAG, "Wantlist updated") }
-            .addOnFailureListener { e -> Log.w(TAG, "Error updating Wantlist") }
+            .addOnFailureListener { e -> Log.w(TAG, "Error updating Wantlist", e) }
     }
 
     /**
@@ -60,7 +87,7 @@ class UserFirestore {
         firestore.collection("users").document(userUid)
             .update("selllist", FieldValue.arrayUnion(set))
             .addOnSuccessListener { Log.d(TAG, "Selllist updated") }
-            .addOnFailureListener { e -> Log.w(TAG, "Error updating Selllist") }
+            .addOnFailureListener { e -> Log.w(TAG, "Error updating Selllist", e) }
     }
 
     /**
@@ -90,7 +117,7 @@ class UserFirestore {
                 }
             }
             .addOnFailureListener {e ->
-                Log.w(TAG, "Error getting wantlist")
+                Log.w(TAG, "Error getting wantlist", e)
                 onComplete(null)
             }
     }
@@ -122,7 +149,7 @@ class UserFirestore {
                 }
             }
             .addOnFailureListener {e ->
-                Log.w(TAG, "Error getting selllist")
+                Log.w(TAG, "Error getting selllist", e)
                 onComplete(null)
             }
     }
