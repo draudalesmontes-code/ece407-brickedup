@@ -8,6 +8,7 @@ espressoCore = "3.7.0"
 lifecycleRuntimeKtx = "2.9.4"
 activityCompose = "1.11.0"
 composeBom = "2024.09.00"
+
 appcompat = "1.7.1"
 navigationCompose = "2.9.5"
 firebaseAppdistributionGradle = "5.1.1"
@@ -19,6 +20,13 @@ roomPaging = "2.8.0"
 roomRuntime = "2.8.0"
 roomRxjava2 = "2.8.0"
 firebaseBom = "34.4.0"
+playServicesLocation = "21.3.0"
+playServicesMaps = "19.2.0"
+cameraView = "1.5.1"
+playServicesMlkitBarcodeScanning = "18.3.1"
+cameraMlkitVision = "1.5.1"
+runtime = "1.9.4"
+compiler = "3.2.0-alpha11"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -48,6 +56,13 @@ androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = 
 firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebaseBom" }
+play-services-location = { group = "com.google.android.gms", name = "play-services-location", version.ref = "playServicesLocation" }
+play-services-maps = { group = "com.google.android.gms", name = "play-services-maps", version.ref = "playServicesMaps" }
+androidx-camera-view = { group = "androidx.camera", name = "camera-view", version.ref = "cameraView" }
+play-services-mlkit-barcode-scanning = { group = "com.google.android.gms", name = "play-services-mlkit-barcode-scanning", version.ref = "playServicesMlkitBarcodeScanning" }
+androidx-camera-mlkit-vision = { group = "androidx.camera", name = "camera-mlkit-vision", version.ref = "cameraMlkitVision" }
+androidx-compose-runtime = { group = "androidx.compose.runtime", name = "runtime", version.ref = "runtime" }
+androidx-compiler = { group = "androidx.databinding", name = "compiler", version.ref = "compiler" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
