@@ -153,4 +153,43 @@ class UserFirestore {
                 onComplete(null)
             }
     }
+
+    /**
+     * Remove set from user's wantlist in firestore
+     */
+    fun removeSetFromWantList(userUid: String, set: LegoSet) {
+        firestore.collection("users").document(userUid)
+            .update("wantlist", FieldValue.arrayRemove(set))
+            .addOnSuccessListener {
+                Log.d(TAG, "Set removed from wantlist")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error removing set from wantlist", e)
+            }
+    }
+
+    /**
+     * Remove set from user's selllist in firestore
+     */
+    fun removeSetFromSellList(userUid: String, set: LegoSet) {
+        firestore.collection("users").document(userUid)
+            .update("selllist", FieldValue.arrayRemove(set))
+            .addOnSuccessListener {
+                Log.d(TAG, "Set removed from selllist")
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error removing set from selllist", e)
+            }
+    }
+
+
+    /**
+     * Delete user from firestore
+     */
+    fun removeUser(userUid: String) {
+        firestore.collection("users").document(userUid)
+            .delete()
+            .addOnSuccessListener { Log.d(TAG, "user data deleted") }
+            .addOnFailureListener { e -> Log.w(TAG, "User deletion failed", e) }
+    }
 }

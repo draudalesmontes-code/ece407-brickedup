@@ -279,7 +279,7 @@ fun AppNavigation(vm: callLocationVM) {
                 SettingsScreen(
                     currentUser = currentUser,
                     onBack = { navController.popBackStack() },
-                            onLogout = {
+                    onLogout = {
                         // 1) Sign out from Firebase (stops auto-login)
                         FirebaseAuth.getInstance().signOut()
 
@@ -297,6 +297,9 @@ fun AppNavigation(vm: callLocationVM) {
                             launchSingleTop = true
                             restoreState = false
                         }
+                    },
+                    onDeleteAccount = {
+                        FirebaseAuth.getInstance()
                     }
                 )
             }

@@ -1,6 +1,7 @@
 package com.cs407.brickcollector.models
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
@@ -12,23 +13,31 @@ data class LegoSet(
     val imageId: Int = 0,
 )
 
-//@Entity
-//data class User(
-//    @PrimaryKey(autoGenerate = true)
-//    val userId: Int = 0,
-//
-//    val userUID: String = "",
-//
-//    val username: String = "",
-//
-//    val email: String = "",
-//
-//    val city: String? = null
-//)
+@Entity
+data class User(
+    @PrimaryKey(autoGenerate = true)
+    val userId: Int = 0,
+
+    val userUID: String = "",
+
+    val username: String = "",
+
+    val email: String = "",
+
+    val city: String? = null
+)
 
 @Entity(
     primaryKeys = ["userId", "setId"],
-    indices = [Index(value = ["setId"])]
+    indices = [Index(value = ["setId"])],
+    foreignKeys = [
+        ForeignKey(
+            entity = User::class,
+            parentColumns = ["userId"],
+            childColumns = ["userId"],
+            onDelete = ForeignKey.CASCADE
+        )
+    ]
 )
 data class UserSetCrossRef(
     val userId: Int,

@@ -92,7 +92,7 @@ class SearchViewModel : ViewModel() {
  */
 class ListsViewModel(private val legoDao: LegoDao) : ViewModel() {
     private val _wantlist = MutableStateFlow<List<LegoSet>>(emptyList())
-    val wishlist: StateFlow<List<LegoSet>> = _wantlist
+    val wantlist: StateFlow<List<LegoSet>> = _wantlist
 
     private val _sellList = MutableStateFlow<List<LegoSet>>(emptyList())
     val sellList: StateFlow<List<LegoSet>> = _sellList

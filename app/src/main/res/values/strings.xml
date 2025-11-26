@@ -19,4 +19,9 @@
     <string name="short_password">Password is too short</string>
     <string name="empty_email">Email is empty</string>
     <string name="empty_password">Password is empty</string>
+    <string name="vert_description">Log Out or Delete Account</string>
+    <string name="logout_button">Log Out</string>
+    <string name="logout_description">Log Out Button</string>
+    <string name="del_acc_button">Delete Account</string>
+    <string name="del_acc_description">Delete Account Button</string>
 </resources>
