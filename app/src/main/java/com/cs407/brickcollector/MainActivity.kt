@@ -27,7 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -35,9 +38,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.*
-import com.cs407.brickcollector.ui.LoginPage
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import com.cs407.brickcollector.api.LegoDatabase
+import com.cs407.brickcollector.models.UserState
+import com.cs407.brickcollector.ui.LoginPage
 import com.cs407.brickcollector.ui.screens.BuyScreen
 import com.cs407.brickcollector.ui.screens.MySetsScreen
 import com.cs407.brickcollector.ui.screens.SellScreen
@@ -45,6 +52,7 @@ import com.cs407.brickcollector.ui.screens.SettingsScreen
 import com.cs407.brickcollector.ui.screens.WantListScreen
 import com.cs407.location.uiScreens.qrCameraScreen
 import com.cs407.location.viewModels.callLocationVM
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -173,6 +181,7 @@ fun AppNavigation(vm: callLocationVM) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    var currentUser by remember { mutableStateOf<UserState?>(null) }
 
     val bottomNavItems = listOf(
         BottomNavItem("my_sets", "My Sets", Icons.Default.Home),
@@ -239,7 +248,10 @@ fun AppNavigation(vm: callLocationVM) {
             composable("login") {
                 LoginPage (
                     modifier = Modifier,
-                    loginButtonClick = {navController.navigate("my_sets")}
+                    loginButtonClick = {
+                            userState ->
+                        currentUser = userState
+                        navController.navigate("my_sets")}
                 )
             }
             composable("my_sets") {
@@ -265,7 +277,27 @@ fun AppNavigation(vm: callLocationVM) {
             }
             composable("settings") {
                 SettingsScreen(
-                    onBack = { navController.popBackStack() }
+                    currentUser = currentUser,
+                    onBack = { navController.popBackStack() },
+                            onLogout = {
+                        // 1) Sign out from Firebase (stops auto-login)
+                        FirebaseAuth.getInstance().signOut()
+
+                        // 2) Clear the app-level user state
+                        currentUser = null
+
+                        // 3) Make sure camera is off (just in case)
+                        MainActivity.AppState.cameraOn = false
+
+                        // 4) Navigate to login and clear back stack
+                        navController.navigate("login") {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
+                            restoreState = false
+                        }
+                    }
                 )
             }
             composable("qrScanner") {

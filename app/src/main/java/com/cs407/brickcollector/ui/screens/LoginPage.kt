@@ -96,8 +96,8 @@ fun signIn(
     val auth: FirebaseAuth = FirebaseAuth.getInstance()
     auth.signInWithEmailAndPassword(email, password)
         .addOnCompleteListener { task ->
-            if (task.isSuccessful)
-                onComplete(task.isSuccessful, task.exception, auth.currentUser)
+            val user = if (task.isSuccessful) auth.currentUser else null
+            onComplete(task.isSuccessful, task.exception, user)
         }
 }
 
@@ -421,7 +421,6 @@ fun LoginScreen (
                     if (isSuccess && firebaseUser != null && !firebaseUser.displayName.isNullOrEmpty()) {
                         coroutineScope.launch {
                             var user = db.userDao().getByUID(firebaseUser.uid)
-                            // Ensure user exists in local DB
                             if (user == null) {
                                 db.userDao().insert(User(userUID = firebaseUser.uid, username = firebaseUser.displayName!!))
                                 user = db.userDao().getByUID(firebaseUser.uid)
