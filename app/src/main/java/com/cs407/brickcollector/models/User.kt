@@ -5,7 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 
 // moved to LegoSet.kt
-/**
+
 @Entity(
     indices = [Index(
         value = ["userUID"],
@@ -22,6 +22,8 @@ data class User(
 
     val email: String = "",
 
-    val wishlist: List<LegoSet>
+    val city: String? = null,
+
+
+   // val wishlist: List<LegoSet>
 )
-        **/

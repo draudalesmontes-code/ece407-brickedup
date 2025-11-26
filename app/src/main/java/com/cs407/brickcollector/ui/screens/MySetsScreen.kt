@@ -433,7 +433,7 @@ fun MySetsScreen(
                         ) {
                             // Image on the left
                             AsyncImage(
-                                model = set.link,
+                                model = set.imageId,
                                 contentDescription = "LEGO Set Image",
                                 modifier = Modifier.size(60.dp),
                                 contentScale = ContentScale.Crop

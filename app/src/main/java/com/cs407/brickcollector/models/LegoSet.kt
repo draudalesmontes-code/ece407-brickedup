@@ -12,19 +12,19 @@ data class LegoSet(
     val imageId: Int = 0,
 )
 
-@Entity
-data class User(
-    @PrimaryKey(autoGenerate = true)
-    val userId: Int = 0,
-
-    val userUID: String = "",
-
-    val username: String = "",
-
-    val email: String = "",
-
-    val city: String? = null
-)
+//@Entity
+//data class User(
+//    @PrimaryKey(autoGenerate = true)
+//    val userId: Int = 0,
+//
+//    val userUID: String = "",
+//
+//    val username: String = "",
+//
+//    val email: String = "",
+//
+//    val city: String? = null
+//)
 
 @Entity(
     primaryKeys = ["userId", "setId"],
