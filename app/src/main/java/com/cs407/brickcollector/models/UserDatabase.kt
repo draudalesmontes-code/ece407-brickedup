@@ -10,6 +10,7 @@ import com.cs407.brickcollector.R
 abstract class UserDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun legoDao(): LegoDao
+    abstract fun deleteDao(): DeleteDao
     companion object {
         // Singleton prevents multiple instances of database
         // opening at the same time.

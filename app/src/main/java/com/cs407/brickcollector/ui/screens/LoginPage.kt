@@ -307,7 +307,7 @@ fun SignUpScreen (
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text(stringResource(R.string.signup_password))},
+            label = { Text(stringResource(R.string.signup_password)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )

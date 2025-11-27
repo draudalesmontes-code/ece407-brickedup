@@ -43,6 +43,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.cs407.brickcollector.api.LegoDatabase
+import com.cs407.brickcollector.models.UserDatabase
+import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.brickcollector.models.UserState
 import com.cs407.brickcollector.ui.LoginPage
 import com.cs407.brickcollector.ui.screens.BuyScreen
@@ -194,44 +196,53 @@ fun AppNavigation(vm: callLocationVM) {
 
     Scaffold(
         topBar = {
-            if (showBars) {
-                TopAppBar(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.navigate("settings") }) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings")
-                        }
-                    },
-                    actions = {
-                        IconButton(onClick = {
-                            if (MainActivity.AppState.cameraOn) {
-                                // Camera is on, turn it off by going back
-                                MainActivity.AppState.cameraOn = false
-                                navController.popBackStack()
-                            } else {
-                                // Camera is off, turn it on by navigating to scanner
-                                MainActivity.AppState.cameraOn = true
-                                navController.navigate("qrScanner")
+            when (currentRoute) {
+                // Show no default top bar (shows top bar from SettingsScreen
+                "settings" -> {}
+                // Show only back arrow when in qrScanner
+                "qrScanner" -> {
+                    TopAppBar(
+                        title = { },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.popBackStack() }) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    contentDescription = "Back"
+                                )
                             }
-                        }) {
-                            Icon(
-                                imageVector = Icons.Filled.QrCodeScanner,
-                                contentDescription = "Scan Barcode"
-                            )
                         }
-                    }
-                )
-            }
-            else {
-                TopAppBar(
-                    title = { },
-                    navigationIcon = {
-                        IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                        }
-                    }
 
-                )
+                    )
+                }
+                // Show default top bar
+                else -> {
+                    TopAppBar(
+                        title = { },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.navigate("settings") }) {
+                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            }
+                        },
+                        actions = {
+                            IconButton(onClick = {
+                                if (MainActivity.AppState.cameraOn) {
+                                    // Camera is on, turn it off by going back
+                                    MainActivity.AppState.cameraOn = false
+                                    navController.popBackStack()
+                                } else {
+                                    // Camera is off, turn it on by navigating to scanner
+                                    MainActivity.AppState.cameraOn = true
+                                    navController.navigate("qrScanner")
+                                }
+                            }) {
+                                Icon(
+                                    imageVector = Icons.Filled.QrCodeScanner,
+                                    contentDescription = "Scan Barcode"
+                                )
+                            }
+                        }
+                    )
+                }
             }
         },
         bottomBar = {
@@ -276,6 +287,11 @@ fun AppNavigation(vm: callLocationVM) {
                 )
             }
             composable("settings") {
+                val context = LocalContext.current
+                val scope = rememberCoroutineScope()
+                val userFirestore = remember { UserFirestore() }
+                val db = remember(context) { UserDatabase.getDatabase(context) }
+
                 SettingsScreen(
                     currentUser = currentUser,
                     onBack = { navController.popBackStack() },
@@ -299,7 +315,39 @@ fun AppNavigation(vm: callLocationVM) {
                         }
                     },
                     onDeleteAccount = {
-                        FirebaseAuth.getInstance()
+                        val user = FirebaseAuth.getInstance().currentUser
+                        if (user != null) {
+                            user.delete()
+                                .addOnSuccessListener {
+                                    Log.d("DeleteAccount", "Firebase Auth user deleted successfully.")
+                                    scope.launch {
+                                        val uid = user.uid
+
+                                        // Delete user data from Firestore
+                                        userFirestore.removeUser(uid)
+
+                                        // Delete user from room database
+                                        currentUser?.id?.let { localUserId ->
+                                            withContext(Dispatchers.IO) {
+                                                db.deleteDao().deleteUser(localUserId)
+                                            }
+                                        }
+
+                                        // Show success message
+                                        withContext(Dispatchers.Main) {
+                                            Toast.makeText(context, "Account successfully deleted.", Toast.LENGTH_LONG).show()
+                                        }
+
+                                        // Navigate to login and clear the back stack
+                                        navController.navigate("login") {
+                                            popUpTo(navController.graph.findStartDestination().id) {
+                                                inclusive = true
+                                            }
+                                            launchSingleTop = true
+                                        }
+                                    }
+                                }
+                        }
                     }
                 )
             }
