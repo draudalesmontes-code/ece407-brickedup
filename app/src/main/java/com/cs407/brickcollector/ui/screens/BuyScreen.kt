@@ -1,5 +1,7 @@
 package com.cs407.brickcollector.ui.screens
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -54,9 +56,9 @@ import coil.compose.AsyncImage
 import com.cs407.brickcollector.R
 import com.cs407.brickcollector.api.ApiService
 import com.cs407.brickcollector.models.LegoSet
+import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.location.viewModels.LatlngToCity
 import com.cs407.location.viewModels.callLocationVM
-import com.google.android.gms.maps.model.LatLng
 
 @Composable
 fun BuyScreen(
@@ -76,11 +78,11 @@ fun BuyScreen(
     val geoKey = remember { context.getString(R.string.geoapify_api_key) }
 
     var userCity by remember { mutableStateOf<String?>(null) }
+    var firestoreCity by remember { mutableStateOf<String?>(null) }
 
     // Pagination variables
     val itemsPerPage = 7
     var currentPage by remember { mutableStateOf(1) }
-    var cardCities by remember { mutableStateOf<List<String?>>(emptyList()) }
     // Filter state variables
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
@@ -88,29 +90,27 @@ fun BuyScreen(
     var indianaJonesChecked by remember { mutableStateOf(false) }
     var harryPotterChecked by remember { mutableStateOf(false) }
     var marvelChecked by remember { mutableStateOf(false) }
+    val userFirestore = UserFirestore()
+    var allCities by remember { mutableStateOf<List<String>>(emptyList()) }
+
 
     //hardcoded test for future buy
     //TODO: Remove once user database working hardcoded for now look at changes
     LaunchedEffect(Unit) {
         val allSets = ApiService.getAvailableForPurchase()
         itemList = allSets.take(4)
-        val sellerLocation = listOf(
-            LatLng(25.779460, -80.207658),//miami
-            LatLng(43.072083, -89.408118),//madison
-            LatLng(37.327717, -121.889255),//cali
-        )
-        val cityVM = LatlngToCity()
 
-        val resolvedCities = mutableListOf<String?>()
-
-        for (coord in sellerLocation) {
-            cityVM.resolveAndStore(coord, apiKey = geoKey)
+        userFirestore.getAllCities { cities ->
+            allCities = cities
+            Toast.makeText(
+                context,
+                "All Firestore cities: ${allCities.joinToString()}",
+                Toast.LENGTH_LONG
+            ).show()
 
 
-            resolvedCities.add(cityVM.cityCounty.value)  // may be null if it fails
         }
 
-        cardCities = resolvedCities
 
         val userLatLng = vm.fetchLatLngOnce()
         if (userLatLng != null) {
@@ -118,7 +118,6 @@ fun BuyScreen(
             userCityVM.resolveAndStore(userLatLng, apiKey = geoKey)
             userCity = userCityVM.cityCounty.value
         }
-
         isLoading = false
     }
 
@@ -138,7 +137,7 @@ fun BuyScreen(
         val maxPrice = priceMax.toDoubleOrNull()
 
         // Call API with all filters
-        // TODO: Make this async when backend implements suspend functions
+         // TODO: Make this async when backend implements suspend functions
         itemList = ApiService.searchAvailableForPurchase(
             searchQuery = activeSearchQuery,
             priceMin = minPrice,
@@ -149,8 +148,8 @@ fun BuyScreen(
         isLoading = false
         currentPage = 1 // Reset to first page after filtering
     }
-    val combinedList = remember(itemList, cardCities, userCity) {
-        val pairs = itemList.zip(cardCities)  // assumes same size
+    val combinedList = remember(itemList, allCities, userCity) {
+        val pairs = itemList.zip(allCities)  // assumes same size
 
         if (userCity == null) {
             pairs

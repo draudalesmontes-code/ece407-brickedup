@@ -301,20 +301,20 @@ fun SignUpScreen (
         Text("Create Account", style = androidx.compose.material3.MaterialTheme.typography.headlineMedium)
         ErrorText(error)
 
-        OutlinedTextField(value = email, onValueChange = { email = it }, label = { stringResource(R.string.signup_email) })
-        OutlinedTextField(value = name, onValueChange = { name = it }, label = { stringResource(R.string.signup_name) })
-        OutlinedTextField(value = city, onValueChange = { city = it }, label = { stringResource(R.string.signup_city) })
+        OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text(stringResource(R.string.signup_email)) })
+        OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.signup_name)) })
+        OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text(stringResource(R.string.signup_city)) })
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { R.string.signup_password },
+            label = { Text(stringResource(R.string.signup_password))},
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { R.string.signup_confirm_password },
+            label = { Text(stringResource(R.string.signup_confirm_password)) },
             visualTransformation = PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
         )

@@ -69,6 +69,32 @@ class UserFirestore {
                 onComplete(null)
             }
     }
+    fun getAllCities(onComplete: (List<String>) -> Unit) {
+        firestore.collection("users")
+            .get()
+            .addOnSuccessListener { query ->
+                // How many docs did we get?
+
+                val cities = mutableListOf<String>()
+
+                for (document in query.documents) {
+                    val data = document.data
+                    val cityAny = document.get("city")
+
+                    if (cityAny is String && cityAny.isNotBlank()) {
+                        cities.add(cityAny.trim())
+                    }
+                }
+
+                onComplete(cities)
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "getAllCities: FAILED to read 'users' collection", e)
+                onComplete(emptyList())
+            }
+    }
+
+
 
     /**
      * Add set to user's wantlist in firestore
