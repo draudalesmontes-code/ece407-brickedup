@@ -199,29 +199,21 @@ fun AppNavigation(vm: callLocationVM) {
             when (currentRoute) {
                 // Show no default top bar (shows top bar from SettingsScreen
                 "settings" -> {}
-                // Show only back arrow when in qrScanner
-                "qrScanner" -> {
-                    TopAppBar(
-                        title = { },
-                        navigationIcon = {
-                            IconButton(onClick = { navController.popBackStack() }) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    contentDescription = "Back"
-                                )
-                            }
-                        }
 
-                    )
-                }
                 // Show default top bar
                 else -> {
                     TopAppBar(
                         title = { },
                         navigationIcon = {
-                            IconButton(onClick = { navController.navigate("settings") }) {
-                                Icon(Icons.Default.Settings, contentDescription = "Settings")
+                            when(currentRoute) {
+                                "login" -> {}
+                                else -> {
+                                    IconButton(onClick = { navController.navigate("settings") }) {
+                                        Icon(Icons.Default.Settings, contentDescription = "Settings")
+                                    }
+                                }
                             }
+
                         },
                         actions = {
                             IconButton(onClick = {
@@ -317,36 +309,46 @@ fun AppNavigation(vm: callLocationVM) {
                     onDeleteAccount = {
                         val user = FirebaseAuth.getInstance().currentUser
                         if (user != null) {
-                            user.delete()
-                                .addOnSuccessListener {
-                                    Log.d("DeleteAccount", "Firebase Auth user deleted successfully.")
-                                    scope.launch {
-                                        val uid = user.uid
+                            val uid = user.uid
+                            val id = currentUser?.id
 
-                                        // Delete user data from Firestore
-                                        userFirestore.removeUser(uid)
+                            scope.launch {
 
-                                        // Delete user from room database
-                                        currentUser?.id?.let { localUserId ->
-                                            withContext(Dispatchers.IO) {
-                                                db.deleteDao().deleteUser(localUserId)
-                                            }
-                                        }
+                                // Delete user data from Firestore
+                                userFirestore.removeUser(uid)
 
-                                        // Show success message
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(context, "Account successfully deleted.", Toast.LENGTH_LONG).show()
-                                        }
-
-                                        // Navigate to login and clear the back stack
-                                        navController.navigate("login") {
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                inclusive = true
-                                            }
-                                            launchSingleTop = true
-                                        }
+                                // Delete user from room database
+                                if (id != null) {
+                                    withContext(Dispatchers.IO) {
+                                        db.deleteDao().deleteUser(id)
                                     }
                                 }
+
+                                user.delete()
+                                    .addOnSuccessListener {
+                                        Log.d(
+                                            "DeleteAccount",
+                                            "Firebase Auth user deleted successfully."
+                                        )
+                                    }
+
+                                // Show success message
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        context,
+                                        "Account successfully deleted.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+
+                                // Navigate to login and clear the back stack
+                                navController.navigate("login") {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        inclusive = true
+                                    }
+                                    launchSingleTop = true
+                                }
+                            }
                         }
                     }
                 )

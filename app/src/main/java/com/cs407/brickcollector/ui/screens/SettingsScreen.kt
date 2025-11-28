@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.outlined.Logout
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ElevatedCard
@@ -80,6 +81,7 @@ fun SettingsScreen(
 
     // Temporary state for editing
     var editedUsername by remember { mutableStateOf("") }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
 
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -172,7 +174,8 @@ fun SettingsScreen(
                         },
                         text = { Text(stringResource(R.string.del_acc_button)) },
                         onClick = {
-                            onDeleteAccount()
+                            expanded = false
+                            showDeleteConfirmDialog = true
                         },
                         colors = MenuDefaults.itemColors(
                             textColor = Color.Red,
@@ -533,5 +536,34 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirmDialog = false
+            },
+            title = { Text("Delete Account") },
+            text = { Text("Are you sure you want to permanently delete your account? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteAccount()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

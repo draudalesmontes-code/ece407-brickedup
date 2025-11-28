@@ -101,11 +101,6 @@ fun signIn(
         }
 }
 
-//fun hash(input: String): String {
-//    return MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
-//        .fold("") { str, it -> str + "%02x".format(it) }
-//}
-
 @Composable
 fun LogInSignUpButton(
     email: String,
@@ -214,25 +209,6 @@ fun updateName(name: String, onComplete: (Boolean, Exception?) -> Unit) {
 }
 
 @Composable
-fun AskNamePage(
-    onComplete: (Boolean, Exception?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    var name by remember { mutableStateOf("") }
-
-    TextField(
-        value = name,
-        onValueChange = { name = it },
-        label = { Text(stringResource(R.string.name_hint)) })
-    Spacer(modifier = Modifier.height(16.dp))
-    Button(onClick = {
-        updateName(name, onComplete)
-    }) {
-        Text(stringResource(R.string.confirm_button))
-    }
-}
-
-@Composable
 fun LoginPage(
     modifier: Modifier = Modifier, loginButtonClick: (UserState) -> Unit
 ) {
@@ -321,15 +297,36 @@ fun SignUpScreen (
 
         Button(
             onClick = {
+                error = null
                 // Validation logic
                 if (email.isBlank() || name.isBlank() ||  password.isBlank()) {
                     error = "Please fill all required fields."
+                    return@Button
+                }
+                val emailResult = checkEmail(email)
+                if (emailResult != EmailResult.Valid) {
+                    error = when (emailResult) {
+                        EmailResult.Empty -> context.getString(R.string.empty_email)
+                        EmailResult.Invalid -> context.getString(R.string.invalid_email)
+                        else -> "An unknown email error occurred."
+                    }
+                    return@Button
+                }
+                val passwordResult = checkPassword(password)
+                if (passwordResult != PasswordResult.Valid) {
+                    error = when (passwordResult) {
+                        PasswordResult.Empty -> context.getString(R.string.empty_password)
+                        PasswordResult.Short -> context.getString(R.string.short_password)
+                        PasswordResult.Invalid -> context.getString(R.string.invalid_password)
+                        else -> "An unknown password error occurred."
+                    }
                     return@Button
                 }
                 if (password != confirmPassword) {
                     error = "Passwords do not match."
                     return@Button
                 }
+
                 isLoading = true
                 createAccount(email, password) { isSuccess, exception, firebaseUser ->
                     if (isSuccess && firebaseUser != null) {
