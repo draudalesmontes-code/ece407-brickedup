@@ -19,6 +19,12 @@ interface LegoDao {
     suspend fun insertSets(legoSets: List<LegoSet>)
 
     @Transaction
+    suspend fun insertMyListSet(userId: Int, set: LegoSet) {
+        insertSet(set)
+        val crossRef = UserSetCrossRef(userId = userId, setId = set.setId, listType = "MY_LIST")
+        addUserSetCrossRef(crossRef)
+    }
+    @Transaction
     suspend fun insertWantListSet(userId: Int, set: LegoSet) {
         insertSet(set)
         val crossRef = UserSetCrossRef(userId = userId, setId = set.setId, listType = "WANT_LIST")
@@ -34,6 +40,18 @@ interface LegoDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun addUserSetCrossRef(crossRef: UserSetCrossRef)
+
+    /**
+     * Get all sets from a user's MyList
+     */
+    @Transaction
+    @Query("""
+        SELECT * FROM LegoSet
+        INNER JOIN UserSetCrossRef
+        ON LegoSet.setId = UserSetCrossRef.setId
+        WHERE UserSetCrossRef.userId = :userId AND UserSetCrossRef.listType = 'MY_LIST'
+    """)
+    suspend fun getMyListSets(userId: Int): List<LegoSet>
 
     /**
      * Get all sets from a user's WantList

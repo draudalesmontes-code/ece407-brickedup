@@ -93,11 +93,21 @@ class SearchViewModel : ViewModel() {
  * ViewModel for managing want_list and sell_list
  */
 class ListsViewModel() : ViewModel() {
+    private val _myList = MutableStateFlow<List<LegoSet>>(emptyList())
+    val myList: StateFlow<List<LegoSet>> = _myList
     private val _wantList = MutableStateFlow<List<LegoSet>>(emptyList())
     val wantList: StateFlow<List<LegoSet>> = _wantList
 
     private val _sellList = MutableStateFlow<List<LegoSet>>(emptyList())
     val sellList: StateFlow<List<LegoSet>> = _sellList
+
+    fun updateMyListFlow(state: Flow<List<LegoSet>>) {
+        viewModelScope.launch {
+            state.collect { curState ->
+                _myList.value = curState
+            }
+        }
+    }
 
     fun updateWantListFlow(state: Flow<List<LegoSet>>) {
         viewModelScope.launch {
@@ -115,6 +125,12 @@ class ListsViewModel() : ViewModel() {
         }
     }
 
+    fun updateMyList(state: List<LegoSet>) {
+        _myList.update {
+            state
+        }
+    }
+
     fun updateWantList(state: List<LegoSet>) {
         _wantList.update {
             state
@@ -127,6 +143,9 @@ class ListsViewModel() : ViewModel() {
         }
     }
 
+    fun addSetToMyList(set: LegoSet) {
+        _myList.value = _myList.value + set
+    }
     fun addSetToWantList(set: LegoSet) {
         _wantList.value = _wantList.value + set
     }

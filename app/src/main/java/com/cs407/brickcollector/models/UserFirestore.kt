@@ -27,9 +27,11 @@ class UserFirestore {
             "uid" to user.uid,
             "name" to name,
             "city" to city,
-            // Initialize wantlist and selllist as empty lists
+            // Initialize mylist, wantlist and selllist as empty lists
+            "mylist" to emptyList<LegoSet>(),
             "wantlist" to emptyList<LegoSet>(),
             "selllist" to emptyList<LegoSet>()
+
         )
 
         // Set the data in a document named after the user's UID
@@ -94,7 +96,15 @@ class UserFirestore {
             }
     }
 
-
+    /**
+     * Add set to user's mylist in firestore
+     */
+    fun addSetToMyList(userUid: String, set: LegoSet) {
+        firestore.collection("users").document(userUid)
+            .update("mylist", FieldValue.arrayUnion(set))
+            .addOnSuccessListener { Log.d(TAG, "Mylist updated") }
+            .addOnFailureListener { e -> Log.w(TAG, "Error updating mylist", e) }
+    }
 
     /**
      * Add set to user's wantlist in firestore
@@ -114,6 +124,38 @@ class UserFirestore {
             .update("selllist", FieldValue.arrayUnion(set))
             .addOnSuccessListener { Log.d(TAG, "Selllist updated") }
             .addOnFailureListener { e -> Log.w(TAG, "Error updating Selllist", e) }
+    }
+
+    /**
+     * Get sets from user's mylist from firestore
+     */
+    fun getSetsFromMyList(userUid: String, onComplete: (List<LegoSet>?) -> Unit){
+        firestore.collection("users").document(userUid)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    val wantList = document.get("mylist") as? List<HashMap<String, Any>>
+                    if (wantList != null) {
+                        val legoSets = wantList.map { map ->
+                            LegoSet(
+                                name = map["name"] as? String ?: "No Name",
+                                setId = (map["setId"] as? Long)?.toInt() ?: -1,
+                                price = map["price"] as? Double ?: 0.0,
+                                imageUrl = map["imageUrl"] as? String ?: "No image"
+                            )
+                        }
+                        onComplete(legoSets)
+                    } else {
+                        onComplete(emptyList())
+                    }
+                } else {
+                    onComplete(null)
+                }
+            }
+            .addOnFailureListener {e ->
+                Log.w(TAG, "Error getting mylist", e)
+                onComplete(null)
+            }
     }
 
     /**

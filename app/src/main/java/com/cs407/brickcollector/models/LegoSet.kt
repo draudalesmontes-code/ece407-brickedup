@@ -42,5 +42,5 @@ data class User(
 data class UserSetCrossRef(
     val userId: Int,
     val setId: Int,
-    val listType: String // Either WANT_LIST or SELL_LIST
+    val listType: String // Either MY_LIST, WANT_LIST or SELL_LIST
 )
