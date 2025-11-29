@@ -1,5 +1,6 @@
 package com.cs407.brickcollector.ui.screens
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,19 +83,26 @@ fun SettingsScreen(
     // Temporary state for editing
     var editedUsername by remember { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    val profile = ApiService.getUserProfile()
 
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
 
+
     // Fetch user profile on load
     LaunchedEffect(Unit) {
-        // TODO: Make this async when backend implements suspend functions
-        val profile = ApiService.getUserProfile()
-        username = profile.username
-        setsOwned = profile.setsOwned
-        setsListed = profile.setsListed
-        editedUsername = profile.username
-        isLoading = false
+        val firebaseUser = Firebase.auth.currentUser
+
+        if (firebaseUser == null) {
+            username = "Guest"
+            editedUsername = username
+        } else {
+        username = firebaseUser.displayName.toString()
+        editedUsername = username
+        }
+
+        isLoading = false;
+
     }
 
 
@@ -162,6 +170,8 @@ fun SettingsScreen(
                         },
                         text = { Text(stringResource(R.string.logout_button)) },
                         onClick = {
+                            Firebase.auth.signOut()
+                            expanded = false
                             onLogout()
                         }
                     )
@@ -522,8 +532,9 @@ fun SettingsScreen(
 
                         Button(
                             onClick = {
-                                ApiService.signOut()
-                                // TODO: Handle navigation to login screen
+                                Firebase.auth.signOut()
+                                onLogout()
+                                      // TODO: Handle navigation to login screen
                             },
                             modifier = Modifier.weight(1f),
                             colors = ButtonDefaults.buttonColors(

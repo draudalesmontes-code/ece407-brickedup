@@ -67,9 +67,9 @@ fun BuyScreen(
 ) {
 
     // State for the list of sets available for purchase - fetched from API
-    var itemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
+//    var itemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
-
+    var itemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
     var searchQuery by remember { mutableStateOf("") }
     var activeSearchQuery by remember { mutableStateOf("") }
     var showFilterWidget by remember { mutableStateOf(false) }
@@ -91,34 +91,28 @@ fun BuyScreen(
     var harryPotterChecked by remember { mutableStateOf(false) }
     var marvelChecked by remember { mutableStateOf(false) }
     val userFirestore = UserFirestore()
-    var allCities by remember { mutableStateOf<List<String>>(emptyList()) }
+//    var allCities by remember { mutableStateOf<List<String>>(emptyList()) }
 
-
+    var marketItems by remember { mutableStateOf<List<UserFirestore.MarketSellEntry>>(emptyList()) }
     //hardcoded test for future buy
     //TODO: Remove once user database working hardcoded for now look at changes
     LaunchedEffect(Unit) {
-        val allSets = ApiService.getAvailableForPurchase()
-        itemList = allSets.take(4)
-
-        userFirestore.getAllCities { cities ->
-            allCities = cities
+        userFirestore.getBuyList { entries ->
             Toast.makeText(
-                context,
-                "All Firestore cities: ${allCities.joinToString()}",
-                Toast.LENGTH_LONG
-            ).show()
-
-
+                               context,
+                               "Loaded ${entries.size} sell entries",
+                               Toast.LENGTH_SHORT
+                                   ).show()
+            marketItems = entries
+            itemList = entries.map { it.set }.distinctBy { it.setId }
+            isLoading = false
         }
-
-
         val userLatLng = vm.fetchLatLngOnce()
         if (userLatLng != null) {
             val userCityVM = LatlngToCity()
             userCityVM.resolveAndStore(userLatLng, apiKey = geoKey)
             userCity = userCityVM.cityCounty.value
         }
-        isLoading = false
     }
 
     // Function to apply filters and search
@@ -148,17 +142,32 @@ fun BuyScreen(
         isLoading = false
         currentPage = 1 // Reset to first page after filtering
     }
-    val combinedList = remember(itemList, allCities, userCity) {
-        val pairs = itemList.zip(allCities)  // assumes same size
+    val combinedList = remember(itemList, marketItems, userCity) {
 
-        if (userCity == null) {
-            pairs
-        } else {
-            pairs.sortedByDescending { (_, sellerCity) ->
-                sellerCity != null && sellerCity.equals(userCity, ignoreCase = true)
+                val flat = mutableListOf<Pair<LegoSet, String?>>()
+
+                for (set in itemList) {
+                        val sellersForSet = marketItems.filter { it.set.setId == set.setId }
+
+                        if (sellersForSet.isEmpty()) {
+                                // No seller found in Firestore; we can still show the set with no city
+                               flat.add(set to null)
+                            } else {
+                                // One row per seller of this set
+                                sellersForSet.forEach { entry ->
+                                        flat.add(entry.set to entry.sellerCity)
+                                    }
+                            }
+                    }
+
+                if (userCity == null) {
+                       flat
+                    } else {
+                        flat.sortedByDescending { (_, sellerCity) ->
+                                sellerCity != null && sellerCity.equals(userCity, ignoreCase = true)
+                            }
+                    }
             }
-        }
-    }
     // Calculate pagination values
     val totalPages = remember(combinedList, itemsPerPage) {
         ((combinedList.size + itemsPerPage - 1) / itemsPerPage).coerceAtLeast(1)

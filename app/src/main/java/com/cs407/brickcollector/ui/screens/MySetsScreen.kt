@@ -1,5 +1,6 @@
 package com.cs407.brickcollector.ui.screens
 
+import android.widget.Toast
 import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
@@ -69,8 +70,10 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun MySetsScreen(
-    onNavigateToSettings: () -> Unit = {}
+    onNavigateToSettings: () -> Unit = {},
+    userViewModel: UserViewModel
 ) {
+
     // hardcoded set for testing
     val hardcodedSet = LegoSet(
         setId = 10188,
@@ -80,7 +83,6 @@ fun MySetsScreen(
     )
     // ViewModels
     val listsViewModel: ListsViewModel = viewModel()
-    val userViewModel: UserViewModel = viewModel()
     val userState by userViewModel.userState.collectAsState()
 
     // room database
@@ -124,6 +126,13 @@ fun MySetsScreen(
         isLoading = false
     }
 
+    LaunchedEffect(userState.id) {
+             if (userState.id != 0) {
+                     Toast.makeText(context, "Room userId = ${userState.id}", Toast.LENGTH_LONG).show()
+             } else if(userState.uid.isEmpty()) {
+                     Toast.makeText(context, "Guest user (id = 0)", Toast.LENGTH_SHORT).show()
+                 }
+    }
     // Function to apply filters and search
     fun applyFiltersAndSearch() {
         isLoading = true

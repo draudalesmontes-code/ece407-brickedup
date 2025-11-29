@@ -13,7 +13,7 @@ interface UserDao {
     suspend fun getById(id: Int): User
 
     @Insert(entity = User::class)
-    suspend fun insert(user: User)
+    suspend fun insert(user: User): Long
 
 
 }

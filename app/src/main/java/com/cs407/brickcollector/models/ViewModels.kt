@@ -40,7 +40,8 @@ class UserViewModel : ViewModel() {
             state
         }
     }
-}
+    }
+
 
 /**
  * ViewModel for handling searches of Lego sets, uses api

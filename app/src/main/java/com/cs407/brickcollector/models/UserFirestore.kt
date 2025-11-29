@@ -147,6 +147,52 @@ class UserFirestore {
                 onComplete(null)
             }
     }
+    data class MarketSellEntry(
+        val set: LegoSet,
+        val sellerUid: String,
+        val sellerCity: String?
+    )
+
+    fun getBuyList(onComplete: (List<MarketSellEntry>) -> Unit){
+        firestore.collection("users")
+            .get()
+            .addOnSuccessListener { query ->
+                val result = mutableListOf<MarketSellEntry>()
+                Log.d(TAG, "getBuyList: found ${query.size()} user documents")
+                for(document in query.documents){
+                    val sellerCity = document.get("city") as? String
+                    val sellList = document.get("selllist") as? List<HashMap<String, Any>>
+                    val sellerUid = document.get("uid") as? String ?: ""
+
+                    if (sellList != null) {
+                        for (map in sellList) {
+                            val set = LegoSet(
+                                name = map["name"] as? String ?: "No Name",
+                                setId = (map["setId"] as? Long)?.toInt() ?: -1,
+                                price = map["price"] as? Double ?: 0.0,
+
+                                imageUrl = map["imageUrl"] as? String ?: "No image"
+                            )
+                            result.add(
+                                MarketSellEntry(
+                                    set = set,
+                                    sellerUid = sellerUid,
+                                    sellerCity = sellerCity
+                                )
+                            )
+                        }
+                    }
+                }
+
+                onComplete(result)
+
+            }
+            .addOnFailureListener { e ->
+                Log.e(TAG, "getAllSellSetsWithCity: FAILED to read sell lists", e)
+                onComplete(emptyList())
+            }
+    }
+
 
     /**
      * Get sets from user's selllist from firestore

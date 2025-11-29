@@ -116,6 +116,7 @@ class MainActivity : ComponentActivity() {
                     Toast.makeText(this@MainActivity, "City: $city", Toast.LENGTH_SHORT).show()
                 }
             } else {
+
                 Toast.makeText(
                     this@MainActivity,
                     "Location permission denied",
@@ -200,6 +201,7 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
         topBar = {
             when (currentRoute) {
                 // Show no default top bar (shows top bar from SettingsScreen
+
                 "settings" -> {}
 
                 // Show default top bar
@@ -260,8 +262,11 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                 )
             }
             composable("my_sets") {
+
                 MySetsScreen(
-                    onNavigateToSettings = { navController.navigate("settings") }
+                    onNavigateToSettings = { navController.navigate("settings") },
+                    userViewModel = userViewModel
+
                 )
             }
             composable("want_list") {
