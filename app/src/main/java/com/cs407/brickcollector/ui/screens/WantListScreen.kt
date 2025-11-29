@@ -453,7 +453,7 @@ fun WantListScreen(
                         ) {
                             // Image on the left
                             AsyncImage(
-                                model = set.imageId,
+                                model = set.imageUrl,
                                 contentDescription = "LEGO Set Image",
                                 modifier = Modifier.size(60.dp),
                                 contentScale = ContentScale.Crop
@@ -572,10 +572,11 @@ fun WantListScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(id = getDrawableId(selectedSet!!.imageId)),
+                            AsyncImage(
+                                model = selectedSet!!.imageUrl,
                                 contentDescription = selectedSet!!.name,
-                                modifier = Modifier.size(60.dp)
+                                modifier = Modifier.size(60.dp),
+                                contentScale = ContentScale.Crop
                             )
 
                             Spacer(modifier = Modifier.width(12.dp))

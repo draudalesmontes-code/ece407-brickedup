@@ -49,32 +49,6 @@ fun ErrorText(error: String?, modifier: Modifier = Modifier) {
         Text(text = error, color = Color.Red, textAlign = TextAlign.Center)
 }
 
-@Composable
-fun userEmail(modifier: Modifier = Modifier): String {
-    var email by remember { mutableStateOf("") }
-
-    TextField(
-        value = email,
-        onValueChange = { email = it },
-        label = { Text(stringResource(R.string.email_hint)) })
-
-    return email
-}
-
-@Composable
-fun userPassword(modifier: Modifier = Modifier): String {
-    var passwd by remember { mutableStateOf("") }
-
-    TextField(
-        value = passwd,
-        onValueChange = { passwd = it },
-        label = { Text(stringResource(R.string.password_hint)) },
-        visualTransformation = PasswordVisualTransformation(),
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password)
-    )
-
-    return passwd
-}
 
 fun createAccount(
     email: String,

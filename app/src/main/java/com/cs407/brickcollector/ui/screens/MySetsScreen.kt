@@ -1,5 +1,6 @@
 package com.cs407.brickcollector.ui.screens
 
+import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -40,29 +41,59 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Button
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.cs407.brickcollector.R
 import com.cs407.brickcollector.models.LegoSet
 import com.cs407.brickcollector.api.ApiService
+import com.cs407.brickcollector.models.ListsViewModel
+import com.cs407.brickcollector.models.UserDatabase
+import com.cs407.brickcollector.models.UserFirestore
+import com.cs407.brickcollector.models.UserViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun MySetsScreen(
     onNavigateToSettings: () -> Unit = {}
 ) {
+    // hardcoded set for testing
+    val hardcodedSet = LegoSet(
+        setId = 10188,
+        name = "Death Star",
+        price = 399.99,
+        imageUrl = "https://images.brickset.com/sets/images/10188-1.jpg" // Example image URL
+    )
+    // ViewModels
+    val listsViewModel: ListsViewModel = viewModel()
+    val userViewModel: UserViewModel = viewModel()
+    val userState by userViewModel.userState.collectAsState()
+
+    // room database
+    val context = LocalContext.current
+    val legoDao = remember { UserDatabase.getDatabase(context).legoDao() }
+    val coroutineScope = rememberCoroutineScope()
+
+    // firestore
+    val userFirestore = remember { UserFirestore() }
+
     // State for the list - fetched from API
-    var itemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
+    // changed to hardcoded set for testing
+    var itemList by remember { mutableStateOf(listOf(hardcodedSet)) }
     var isLoading by remember { mutableStateOf(true) }
 
     var searchQuery by remember { mutableStateOf("") }
@@ -85,10 +116,11 @@ fun MySetsScreen(
     var harryPotterChecked by remember { mutableStateOf(false) }
     var marvelChecked by remember { mutableStateOf(false) }
 
-    // Initial data fetch
+//    Commented out for testing
+//    // Initial data fetch
     LaunchedEffect(Unit) {
-        // TODO: Make this async when backend implements suspend functions
-        itemList = ApiService.getMySets()
+//        // TODO: Make this async when backend implements suspend functions
+//        itemList = ApiService.getMySets()
         isLoading = false
     }
 
@@ -433,7 +465,7 @@ fun MySetsScreen(
                         ) {
                             // Image on the left
                             AsyncImage(
-                                model = set.imageId,
+                                model = set.imageUrl,
                                 contentDescription = "LEGO Set Image",
                                 modifier = Modifier.size(60.dp),
                                 contentScale = ContentScale.Crop
@@ -552,10 +584,12 @@ fun MySetsScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(id = getDrawableId(selectedSet!!.imageId)),
+                            AsyncImage(
+                                model = selectedSet!!.imageUrl,
                                 contentDescription = selectedSet!!.name,
-                                modifier = Modifier.size(60.dp)
+                                modifier = Modifier.size(60.dp),
+                                contentScale = ContentScale.Crop
+
                             )
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -592,6 +626,58 @@ fun MySetsScreen(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text("Filler Row 4", style = MaterialTheme.typography.bodyLarge)
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 24.dp, start = 24.dp, end = 24.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp) // Space between buttons
+                ) {
+                    Button(
+                        onClick = {
+                            val setToAdd = selectedSet
+                            if (setToAdd != null && userState.id != 0) {
+                                // Instantly update the UI
+                                listsViewModel.addSetToWantList(setToAdd)
+
+                                // Launch the background task using the safe local variable
+                                coroutineScope.launch {
+                                    legoDao.insertWantListSet(userState.id, setToAdd)
+                                    userFirestore.addSetToWantList(userState.uid, setToAdd)
+                                }
+
+                                // Now it's safe to clear the state
+                                selectedSet = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Add to Want List")
+                    }
+
+                    // Add to Want List Button
+                    Button(
+                        onClick = {
+                            val setToAdd = selectedSet
+                            if (setToAdd != null && userState.id != 0) {
+                                // Instantly update the UI
+                                listsViewModel.addSetToSellList(setToAdd)
+
+                                // Launch the background task
+                                coroutineScope.launch {
+                                    legoDao.insertSellListSet(userState.id, setToAdd)
+                                    userFirestore.addSetToSellList(userState.uid, setToAdd)
+                                }
+
+                                // Clear the state
+                                selectedSet = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Add to Sell List")
+                    }
                 }
             }
         }

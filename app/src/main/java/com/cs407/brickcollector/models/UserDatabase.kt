@@ -6,7 +6,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.cs407.brickcollector.R
 
-@Database(entities = [User::class, LegoSet::class, UserSetCrossRef::class], version = 1)
+@Database(entities = [User::class, LegoSet::class, UserSetCrossRef::class], version = 2)
 abstract class UserDatabase : RoomDatabase() {
     abstract fun userDao(): UserDao
     abstract fun legoDao(): LegoDao
@@ -24,7 +24,9 @@ abstract class UserDatabase : RoomDatabase() {
                     context.applicationContext,
                     UserDatabase::class.java,
                     context.getString(R.string.user_database),
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

@@ -131,7 +131,7 @@ class UserFirestore {
                                 name = map["name"] as? String ?: "No Name",
                                 setId = (map["setId"] as? Long)?.toInt() ?: -1,
                                 price = map["price"] as? Double ?: 0.0,
-                                imageId = (map["imageId"] as? Long)?. toInt() ?: -1
+                                imageUrl = map["imageUrl"] as? String ?: "No image"
                             )
                         }
                         onComplete(legoSets)
@@ -163,7 +163,7 @@ class UserFirestore {
                                 name = map["name"] as? String ?: "No Name",
                                 setId = (map["setId"] as? Long)?.toInt() ?: -1,
                                 price = map["price"] as? Double ?: 0.0,
-                                imageId = (map["imageId"] as? Long)?. toInt() ?: -1
+                                imageUrl = map["imageUrl"] as? String ?: "No image"
                             )
                         }
                         onComplete(legoSets)

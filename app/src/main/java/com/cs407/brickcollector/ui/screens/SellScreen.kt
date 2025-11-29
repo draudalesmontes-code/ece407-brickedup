@@ -48,12 +48,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import coil.compose.AsyncImage
 import com.cs407.brickcollector.R
 import com.cs407.brickcollector.models.LegoSet
 import com.cs407.brickcollector.api.ApiService
@@ -456,10 +458,11 @@ fun SellScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             // Image on the left
-                            Image(
-                                painter = painterResource(id = getDrawableId(set.imageId)),
+                            AsyncImage(
+                                model = set.imageUrl,
                                 contentDescription = set.name,
-                                modifier = Modifier.size(80.dp)
+                                modifier = Modifier.size(80.dp),
+                                contentScale = ContentScale.Crop
                             )
 
                             Spacer(modifier = Modifier.width(16.dp))
@@ -575,10 +578,11 @@ fun SellScreen(
                             modifier = Modifier.weight(1f),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Image(
-                                painter = painterResource(id = getDrawableId(selectedSet!!.imageId)),
+                            AsyncImage(
+                                model = selectedSet!!.imageUrl,
                                 contentDescription = selectedSet!!.name,
-                                modifier = Modifier.size(60.dp)
+                                modifier = Modifier.size(60.dp),
+                                contentScale = ContentScale.Crop
                             )
 
                             Spacer(modifier = Modifier.width(12.dp))
@@ -696,10 +700,11 @@ fun SellScreen(
                                             .padding(16.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        Image(
-                                            painter = painterResource(id = getDrawableId(set.imageId)),
+                                        AsyncImage(
+                                            model = set.imageUrl,
                                             contentDescription = set.name,
-                                            modifier = Modifier.size(60.dp)
+                                            modifier = Modifier.size(60.dp),
+                                            contentScale = ContentScale.Crop
                                         )
 
                                         Spacer(modifier = Modifier.width(16.dp))

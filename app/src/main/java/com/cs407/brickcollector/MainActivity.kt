@@ -35,6 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -46,6 +47,7 @@ import com.cs407.brickcollector.api.LegoDatabase
 import com.cs407.brickcollector.models.UserDatabase
 import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.brickcollector.models.UserState
+import com.cs407.brickcollector.models.UserViewModel
 import com.cs407.brickcollector.ui.LoginPage
 import com.cs407.brickcollector.ui.screens.BuyScreen
 import com.cs407.brickcollector.ui.screens.MySetsScreen
@@ -179,7 +181,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AppNavigation(vm: callLocationVM) {
+fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -251,9 +253,9 @@ fun AppNavigation(vm: callLocationVM) {
             composable("login") {
                 LoginPage (
                     modifier = Modifier,
-                    loginButtonClick = {
-                            userState ->
+                    loginButtonClick = { userState ->
                         currentUser = userState
+                        userViewModel.setUser(userState)
                         navController.navigate("my_sets")}
                 )
             }

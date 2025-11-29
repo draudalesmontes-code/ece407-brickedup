@@ -10,7 +10,7 @@ data class LegoSet(
     val name: String,
     @PrimaryKey val setId: Int,
     val price: Double,
-    val imageId: Int = 0,
+    val imageUrl: String?,
 )
 
 @Entity

@@ -7,6 +7,7 @@ import com.cs407.brickcollector.api.ApiService
 import com.google.firebase.Firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.auth
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -20,7 +21,7 @@ data class UserState(
 /**
  * ViewModel for handling users with firebase
  */
-class UserViewModels : ViewModel() {
+class UserViewModel : ViewModel() {
     private val _userState = MutableStateFlow(UserState())
     private val auth: FirebaseAuth = Firebase.auth
     val userState = _userState.asStateFlow()
@@ -90,27 +91,46 @@ class SearchViewModel : ViewModel() {
 /**
  * ViewModel for managing want_list and sell_list
  */
-class ListsViewModel(private val legoDao: LegoDao) : ViewModel() {
-    private val _wantlist = MutableStateFlow<List<LegoSet>>(emptyList())
-    val wantlist: StateFlow<List<LegoSet>> = _wantlist
+class ListsViewModel() : ViewModel() {
+    private val _wantList = MutableStateFlow<List<LegoSet>>(emptyList())
+    val wantList: StateFlow<List<LegoSet>> = _wantList
 
     private val _sellList = MutableStateFlow<List<LegoSet>>(emptyList())
     val sellList: StateFlow<List<LegoSet>> = _sellList
 
-
-    fun addSetToUserCollection(userId: Int, set: LegoSet, listType: String) {
+    fun updateWantListFlow(state: Flow<List<LegoSet>>) {
         viewModelScope.launch {
-            // Insert the set details into the LegoSet table first
-            legoDao.insertSets(listOf(set))
-            // Create the relationship in the cross-reference table
-            val crossRef = UserSetCrossRef(userId = userId, setId = set.setId, listType = listType)
-            legoDao.addUserSetCrossRef(crossRef)
-            // Refresh the appropriate list
-            if (listType == "WANT_LIST") {
-                legoDao.insertWantListSet(userId, set)
-            } else {
-                legoDao.insertSellListSet(userId, set)
+            state.collect { curState ->
+                _wantList.value = curState
             }
         }
+    }
+
+    fun updateSellListFlow(state: Flow<List<LegoSet>>) {
+        viewModelScope.launch {
+            state.collect { curState ->
+                _sellList.value = curState
+            }
+        }
+    }
+
+    fun updateWantList(state: List<LegoSet>) {
+        _wantList.update {
+            state
+        }
+    }
+
+    fun updateSellList(state: List<LegoSet>) {
+        _sellList.update {
+            state
+        }
+    }
+
+    fun addSetToWantList(set: LegoSet) {
+        _wantList.value = _wantList.value + set
+    }
+
+    fun addSetToSellList(set: LegoSet) {
+        _sellList.value = _sellList.value + set
     }
 }
