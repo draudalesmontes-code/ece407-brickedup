@@ -545,58 +545,6 @@ fun MySetsScreen(
                         Text("Remove from My Sets")
                     }
                 }
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 24.dp, start = 24.dp, end = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp) // Space between buttons
-                ) {
-                    Button(
-                        onClick = {
-                            val setToAdd = selectedSet
-                            if (setToAdd != null && userState.id != 0) {
-                                // Instantly update the UI
-                                listsViewModel.addSetToWantList(setToAdd)
-
-                                // Launch the background task using the safe local variable
-                                coroutineScope.launch {
-                                    legoDao.insertWantListSet(userState.id, setToAdd)
-                                    userFirestore.addSetToWantList(userState.uid, setToAdd)
-                                }
-
-                                // Now it's safe to clear the state
-                                selectedSet = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Add to Want List")
-                    }
-
-                    // Add to Want List Button
-                    Button(
-                        onClick = {
-                            val setToAdd = selectedSet
-                            if (setToAdd != null && userState.id != 0) {
-                                // Instantly update the UI
-                                listsViewModel.addSetToSellList(setToAdd)
-
-                                // Launch the background task
-                                coroutineScope.launch {
-                                    legoDao.insertSellListSet(userState.id, setToAdd)
-                                    userFirestore.addSetToSellList(userState.uid, setToAdd)
-                                }
-
-                                // Clear the state
-                                selectedSet = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Add to Sell List")
-                    }
-                }
             }
         }
     }

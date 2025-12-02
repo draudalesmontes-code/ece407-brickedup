@@ -130,7 +130,6 @@ fun BuyScreen(
         itemList = filtered
         currentPage = 1
     }
-    val combinedList = remember(itemList, marketItems, userCity) {
 
     val combinedList = remember(itemList, marketItems, userCity) {
         val flat = mutableListOf<Pair<LegoSet, String?>>()
