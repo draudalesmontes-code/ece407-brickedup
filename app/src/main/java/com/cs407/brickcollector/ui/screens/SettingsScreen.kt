@@ -41,6 +41,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -58,6 +59,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.cs407.brickcollector.R
 import com.cs407.brickcollector.api.ApiService
+import com.cs407.brickcollector.models.UserFirestore
 import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
@@ -77,32 +79,44 @@ fun SettingsScreen(
 
     // User profile state
     var username by remember { mutableStateOf("") }
-    var setsOwned by remember { mutableStateOf("") }
-    var setsListed by remember { mutableStateOf("") }
+    var setsOwned by remember { mutableStateOf("0") }
+    var setsSold by remember { mutableStateOf("0") }
+    var totalEarned by remember { mutableStateOf("$0.00") }
 
     // Temporary state for editing
     var editedUsername by remember { mutableStateOf("") }
     var showDeleteConfirmDialog by remember { mutableStateOf(false) }
-    val profile = ApiService.getUserProfile()
 
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val userFirestore = remember { UserFirestore() }
 
-
-    // Fetch user profile on load
-    LaunchedEffect(Unit) {
+    // Fetch user profile and stats on load
+    LaunchedEffect(currentUser?.uid) {
         val firebaseUser = Firebase.auth.currentUser
 
         if (firebaseUser == null) {
             username = "Guest"
             editedUsername = username
+            isLoading = false
         } else {
-        username = firebaseUser.displayName.toString()
-        editedUsername = username
+            username = firebaseUser.displayName.toString()
+            editedUsername = username
+
+            // Load user statistics
+            if (currentUser?.uid?.isNotEmpty() == true) {
+                userFirestore.getUserStats(currentUser.uid) { stats ->
+                    if (stats != null) {
+                        setsOwned = stats.setsOwned.toString()
+                        setsSold = stats.setsSold.toString()
+                        totalEarned = String.format("$%.2f", stats.totalEarned)
+                    }
+                    isLoading = false
+                }
+            } else {
+                isLoading = false
+            }
         }
-
-        isLoading = false;
-
     }
 
 
@@ -201,7 +215,7 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Loading...")
+                CircularProgressIndicator()
             }
         } else {
             LazyColumn(
@@ -210,7 +224,7 @@ fun SettingsScreen(
                     .fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // Profile Section
+                // Profile Section - Only Username and Profile Pic
                 item {
                     Row(
                         modifier = Modifier
@@ -236,12 +250,11 @@ fun SettingsScreen(
 
                         Spacer(modifier = Modifier.width(16.dp))
 
-                        // Username and Stats Column
+                        // Username only
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.Center
                         ) {
-                            // Username
                             if (isEditing) {
                                 OutlinedTextField(
                                     value = editedUsername,
@@ -253,51 +266,15 @@ fun SettingsScreen(
                             } else {
                                 Text(
                                     text = username,
-                                    style = MaterialTheme.typography.titleLarge,
+                                    style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-
-                            // Stats Row
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(24.dp)
-                            ) {
-                                // Sets Owned
-                                Column {
-                                    Text(
-                                        text = setsOwned,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "Sets Owned",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                // Sets Listed
-                                Column {
-                                    Text(
-                                        text = setsListed,
-                                        style = MaterialTheme.typography.titleMedium,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.secondary
-                                    )
-                                    Text(
-                                        text = "Listed to Sell",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
                         }
                     }
                 }
 
-                // Settings Cards
+                // Statistics Cards
                 item {
                     ElevatedCard(
                         modifier = Modifier
@@ -310,14 +287,22 @@ fun SettingsScreen(
                             )
                         )
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
-                            contentAlignment = Alignment.Center
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Card 1",
+                                text = setsOwned,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Sets Owned",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -337,14 +322,22 @@ fun SettingsScreen(
                             )
                         )
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
-                            contentAlignment = Alignment.Center
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Card 2",
+                                text = setsSold,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.secondary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Sets Sold",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -364,189 +357,60 @@ fun SettingsScreen(
                             )
                         )
                     ) {
-                        Box(
+                        Column(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .padding(16.dp),
-                            contentAlignment = Alignment.Center
+                            verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Card 3",
+                                text = totalEarned,
+                                style = MaterialTheme.typography.displaySmall,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.tertiary
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Total Earned",
                                 style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
-                        }
-                    }
-                }
-
-                item {
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Card 4",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                // Settings Cards (duplicated as per original design)
-                item {
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.primaryContainer.copy(
-                                alpha = 0.3f
-                            )
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Card 1",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(
-                                alpha = 0.3f
-                            )
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Card 2",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(
-                                alpha = 0.3f
-                            )
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Card 3",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    ElevatedCard(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(120.dp),
-                        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp),
-                        colors = CardDefaults.elevatedCardColors(
-                            containerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.2f)
-                        )
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = "Card 4",
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                // Bottom Buttons inside LazyColumn
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                ApiService.switchAccount()
-                                // TODO: Handle navigation after switch
-                            },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Text("Switch Account")
-                        }
-
-                        Button(
-                            onClick = {
-                                Firebase.auth.signOut()
-                                onLogout()
-                                      // TODO: Handle navigation to login screen
-                            },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.error
-                            )
-                        ) {
-                            Text("Sign Out")
                         }
                     }
                 }
             }
         }
+    }
+
+    if (showDeleteConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = {
+                showDeleteConfirmDialog = false
+            },
+            title = { Text("Delete Account") },
+            text = { Text("Are you sure you want to permanently delete your account? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeleteAccount()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                Button(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
     if (showDeleteConfirmDialog) {
         AlertDialog(
