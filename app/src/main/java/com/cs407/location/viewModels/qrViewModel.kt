@@ -24,6 +24,11 @@ class qrViewModel : ViewModel() {
     private var _qrResult = MutableStateFlow<String?>(null)
     val qrResult get() = _qrResult.asStateFlow()
 
+    fun clearResult() {
+        viewModelScope.launch {
+            _qrResult.emit(null)
+        }
+    }
 
     fun setUpCamera(context: Context) {
         // Only set up once

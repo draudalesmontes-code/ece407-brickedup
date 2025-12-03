@@ -70,6 +70,7 @@ fun qrCameraScreen(
             onQrScanned(value)
             // If you want to prevent multiple triggers while the code stays in view,
             // you can clear the result in the ViewModel (see note below).
+            viewModel.clearResult()
         }
     }
 

@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -139,7 +140,6 @@ class MainActivity : ComponentActivity() {
                     appContext = applicationContext,
                     geoapifyApiKey = geoKey
                 )
-                val Latlng = vm.fetchLatLngOnce()
                 //Toast.makeText(this@MainActivity, "Latlng: $Latlng", Toast.LENGTH_SHORT).show()
                 Log.d("CITY", "Resolved city (already had perm): $city")
                 //Toast.makeText(this@MainActivity, "City: $city", Toast.LENGTH_SHORT).show()
@@ -195,8 +195,13 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                                     navController.popBackStack()
                                 } else {
                                     // Camera is off, turn it on by navigating to scanner
+                                    val targetRouteForScanner = when (currentRoute) {
+                                        "want_list" -> "want_list"
+                                        "sell" -> "sell"
+                                        else -> "my_sets" // default: My Sets
+                                    }
                                     MainActivity.AppState.cameraOn = true
-                                    navController.navigate("qrScanner")
+                                    navController.navigate("qrScanner/$targetRouteForScanner")
                                 }
                             }) {
                                 Icon(
@@ -318,9 +323,14 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                     }
                 )
             }
-            composable("qrScanner") {
+            composable("qrScanner/{targetRoute}") { backStackEntry ->
                 val context = LocalContext.current
                 val scope = rememberCoroutineScope()
+                val targetRoute = backStackEntry.arguments?.getString("targetRoute") ?: "my_sets"
+
+                val userState by userViewModel.userState.collectAsState()
+                val userDatabase = remember { UserDatabase.getDatabase(context) }
+                val userFirestore = remember { UserFirestore() }
 
                 qrCameraScreen { scannedValue ->
                     scope.launch {
@@ -330,23 +340,75 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                             legoDb.getSetByUPC(scannedValue)
                         }
 
-                        val msg = if (set != null) {
-                            "UPC: $scannedValue\nSet: ${set.setNumber} - ${set.name}"
-                        } else {
-                            "No set found for UPC $scannedValue"
+                        if (set != null && userState.id != 0 && userState.uid.isNotEmpty()) {
+                            val roomSet = com.cs407.brickcollector.models.LegoSet(
+                                name = set.name,
+                                setId = set.setId,
+                                price = set.newPrice ?: set.usedPrice ?: 0.0,
+                                imageUrl = set.imageUrl
+                            )
+
+                            when (targetRoute) {
+                                "want_list" -> {
+                                    // Add to Want List
+                                    withContext(Dispatchers.IO) {
+                                        userDatabase.legoDao()
+                                            .insertWantListSet(userState.id, roomSet)
+                                    }
+                                    userFirestore.addSetToWantList(userState.uid, roomSet)
+                                }
+
+                            "sell" -> {
+                                withContext(Dispatchers.IO) {
+                                    userDatabase.legoDao().insertSellListSet(userState.id, roomSet)
+                                }
+                                userFirestore.addSetToSellList(userState.uid, roomSet)
+
+                            }
+                        else -> {
+                                // Default: add to My Sets
+                                withContext(Dispatchers.IO) {
+                                    userDatabase.legoDao().insertMyListSet(userState.id, roomSet)
+                                }
+                                userFirestore.addSetToMyList(userState.uid, roomSet)
+
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        context,
+                                        "Added to My Sets: ${roomSet.name}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        }
+                    } else {
+                    withContext(Dispatchers.Main) {
+                        val message = when {
+                            set == null -> "No set found for this barcode"
+                            userState.id == 0 || userState.uid.isEmpty() ->
+                                "You must be logged in to save sets"
+                            else -> "Error adding set"
+                        }
+                        Toast.makeText(
+                            context,
+                            message,
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
                         }
 
-                        Log.d("QR-Lego", msg)
-                        Toast.makeText(context, msg, Toast.LENGTH_LONG).show()
 
-                        MainActivity.AppState.cameraOn = false
+
+
+                            MainActivity.AppState.cameraOn = false
                         navController.popBackStack()
                     }
                 }
             }
         }
-    }
 }
+
 
 data class BottomNavItem(val route: String, val label: String, val icon: ImageVector)
 
