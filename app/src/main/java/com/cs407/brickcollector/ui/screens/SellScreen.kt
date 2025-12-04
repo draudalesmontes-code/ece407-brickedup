@@ -17,6 +17,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -56,6 +57,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.cs407.brickcollector.api.LegoDatabase
 import com.cs407.brickcollector.models.LegoSet
 import com.cs407.brickcollector.models.UserDatabase
 import com.cs407.brickcollector.models.UserFirestore
@@ -83,6 +85,7 @@ fun SellScreen(
     var activeSearchQuery by remember { mutableStateOf("") }
     var showFilterWidget by remember { mutableStateOf(false) }
     var selectedSet by remember { mutableStateOf<LegoSet?>(null) }
+    var editedPriceText by remember { mutableStateOf("") }
 
     var showAddDialog by remember { mutableStateOf(false) }
     var addSearchQuery by remember { mutableStateOf("") }
@@ -96,7 +99,9 @@ fun SellScreen(
     var priceMax by remember { mutableStateOf("") }
     val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
     var selectedThemeFilter by remember { mutableStateOf("All") }
+    val legoPriceDb = remember { LegoDatabase.getInstance(context) }
 
+    var dbPrices by remember { mutableStateOf<Map<Int, Double>>(emptyMap()) }
     // Load Sell List and My Sets from Firestore - only once
     LaunchedEffect(userState.uid) {
         if (userState.uid.isNotEmpty()) {
@@ -120,6 +125,32 @@ fun SellScreen(
             isLoading = false
         }
     }
+
+    LaunchedEffect(fullItemList) {
+        if (fullItemList.isNotEmpty()) {
+            val priceMap = mutableMapOf<Int, Double>()
+
+            withContext(Dispatchers.IO) {
+                fullItemList.forEach { set ->
+                    try {
+                        val dbSet = legoPriceDb.getSetById(set.setId)
+                        val basePrice = dbSet?.newPrice ?: dbSet?.usedPrice
+                        if (basePrice != null) {
+                            priceMap[set.setId] = basePrice
+                        }
+                    } catch (e: Exception) {
+                        Log.e("SellScreen", "Error loading db price for ${set.setId}", e)
+                    }
+                }
+            }
+
+            dbPrices = priceMap
+        } else {
+            dbPrices = emptyMap()
+        }
+    }
+
+
 
     fun applyFiltersAndSearch() {
         var results = fullItemList
@@ -376,7 +407,9 @@ fun SellScreen(
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedSet = set },
+                            .clickable { selectedSet = set
+                                editedPriceText = String.format("%.2f", set.price)
+                            },
                         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
                     ) {
                         Row(
@@ -400,19 +433,26 @@ fun SellScreen(
                                 modifier = Modifier.weight(1f)
                             )
 
+                            val basePrice = dbPrices[set.setId]
+
                             Column(
                                 horizontalAlignment = Alignment.End
                             ) {
                                 Text(
-                                    text = "Asking Price",
+                                    text = "Asking price: $${String.format("%.2f", set.price)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                Text(
-                                    text = "$${set.price}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
+
+                                if (basePrice != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+
+                                    Text(
+                                        text = "Price: $${String.format("%.2f", basePrice)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
@@ -457,6 +497,7 @@ fun SellScreen(
     }
 
     // Set Details Dialog
+    // Set Details Dialog
     if (selectedSet != null) {
         Dialog(
             onDismissRequest = { selectedSet = null },
@@ -465,7 +506,7 @@ fun SellScreen(
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.5f)
+                    .wrapContentHeight()
                     .padding(16.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
             ) {
@@ -474,6 +515,7 @@ fun SellScreen(
                         .fillMaxWidth()
                         .padding(24.dp)
                 ) {
+                    // Header: image + name + close
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -512,13 +554,110 @@ fun SellScreen(
                     HorizontalDivider()
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Text("Set ID: ${selectedSet!!.setId}", style = MaterialTheme.typography.bodyLarge)
+                    Text(
+                        "Set ID: ${selectedSet!!.setId}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text("Asking Price: $${selectedSet!!.price}", style = MaterialTheme.typography.bodyLarge)
+                    val basePriceForDialog = dbPrices[selectedSet!!.setId]
 
-                    Spacer(modifier = Modifier.weight(1f))
+                    // Editable asking price
+                    OutlinedTextField(
+                        value = editedPriceText,
+                        onValueChange = { input ->
+                            editedPriceText = input.filter { it.isDigit() || it == '.' }
+                        },
+                        label = { Text("Asking price") },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(
+                            imeAction = ImeAction.Done,
+                            keyboardType = KeyboardType.Number
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
 
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    // Read-only database price
+                    Text(
+                        text = "Database price: " + (
+                                basePriceForDialog?.let { "$" + String.format("%.2f", it) } ?: "N/A"
+                                ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // Full-width Save button
+                    Button(
+                        onClick = {
+                            val current = selectedSet
+                            val newPrice = editedPriceText.toDoubleOrNull()
+                            if (current == null) {
+                                Log.w("SellScreen", "SaveAskingPrice: selectedSet is null, nothing to save")
+                                return@Button
+                            }
+
+                            if (newPrice == null) {
+                                Log.w(
+                                    "SellScreen",
+                                    "SaveAskingPrice: editedPriceText='$editedPriceText' is not a valid number"
+                                )
+                                return@Button
+                            }
+
+                            if (userState.id == 0 || userState.uid.isEmpty()) {
+                                Log.w(
+                                    "SellScreen",
+                                    "SaveAskingPrice: user not logged in correctly, id=${userState.id}, uid=${userState.uid}"
+                                )
+                                return@Button
+                            }
+
+                            coroutineScope.launch {
+                                val updatedSet = current.copy(price = newPrice)
+
+                                // 1) Update Room asking price for this set
+                                withContext(Dispatchers.IO) {
+                                    Log.d(
+                                        "SellScreen",
+                                        "SaveAskingPrice: updating Room with price=${updatedSet.price}"
+                                    )
+                                    userDatabase.legoDao().insertSet(updatedSet)
+                                }
+
+                                // 2) Update asking price in Firestore sell list
+                                Log.d(
+                                    "SellScreen",
+                                    "SaveAskingPrice: calling updateSetPriceInSellList for setId=${updatedSet.setId}"
+                                )
+                                userFirestore.updateSetPriceInSellList(
+                                    userState.uid,
+                                    updatedSet
+                                )
+
+                                // 3) Update UI lists (so card shows new price immediately)
+                                fullItemList = fullItemList.map {
+                                    if (it.setId == updatedSet.setId) updatedSet else it
+                                }
+                                itemList = itemList.map {
+                                    if (it.setId == updatedSet.setId) updatedSet else it
+                                }
+
+                                // keep dialog open so you can Confirm/Remove or close via X
+                                selectedSet = updatedSet
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Save Asking Price")
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Row for Confirm / Remove
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -530,22 +669,42 @@ fun SellScreen(
                                     coroutineScope.launch {
                                         // Remove from Room database (SELL_LIST, MY_LIST, and WANT_LIST)
                                         withContext(Dispatchers.IO) {
-                                            userDatabase.deleteDao().deleteFromSellList(listOf(setToSell.setId), userState.id)
-                                            userDatabase.deleteDao().deleteFromMyList(listOf(setToSell.setId), userState.id)
-                                            userDatabase.deleteDao().deleteFromWantList(listOf(setToSell.setId), userState.id)
+                                            userDatabase.deleteDao().deleteFromSellList(
+                                                listOf(setToSell.setId),
+                                                userState.id
+                                            )
+                                            userDatabase.deleteDao().deleteFromMyList(
+                                                listOf(setToSell.setId),
+                                                userState.id
+                                            )
+                                            userDatabase.deleteDao().deleteFromWantList(
+                                                listOf(setToSell.setId),
+                                                userState.id
+                                            )
                                         }
 
                                         // Remove from Firestore (all lists)
-                                        userFirestore.removeSetFromSellList(userState.uid, setToSell)
-                                        userFirestore.removeSetFromMyList(userState.uid, setToSell)
-                                        userFirestore.removeSetFromWantList(userState.uid, setToSell)
+                                        userFirestore.removeSetFromSellList(
+                                            userState.uid,
+                                            setToSell
+                                        )
+                                        userFirestore.removeSetFromMyList(
+                                            userState.uid,
+                                            setToSell
+                                        )
+                                        userFirestore.removeSetFromWantList(
+                                            userState.uid,
+                                            setToSell
+                                        )
 
                                         // Record the sale (increment setsSold and totalEarned)
                                         userFirestore.recordSale(userState.uid, setToSell.price)
 
                                         // Update UI
-                                        fullItemList = fullItemList.filter { it.setId != setToSell.setId }
-                                        itemList = itemList.filter { it.setId != setToSell.setId }
+                                        fullItemList =
+                                            fullItemList.filter { it.setId != setToSell.setId }
+                                        itemList =
+                                            itemList.filter { it.setId != setToSell.setId }
 
                                         selectedSet = null
                                     }
@@ -566,19 +725,28 @@ fun SellScreen(
                                     coroutineScope.launch {
                                         // Add back to My Sets
                                         withContext(Dispatchers.IO) {
-                                            userDatabase.legoDao().insertMyListSet(userState.id, setToMove)
+                                            userDatabase.legoDao()
+                                                .insertMyListSet(userState.id, setToMove)
                                         }
                                         userFirestore.addSetToMyList(userState.uid, setToMove)
 
                                         // Remove from Sell List
                                         withContext(Dispatchers.IO) {
-                                            userDatabase.deleteDao().deleteFromSellList(listOf(setToMove.setId), userState.id)
+                                            userDatabase.deleteDao().deleteFromSellList(
+                                                listOf(setToMove.setId),
+                                                userState.id
+                                            )
                                         }
-                                        userFirestore.removeSetFromSellList(userState.uid, setToMove)
+                                        userFirestore.removeSetFromSellList(
+                                            userState.uid,
+                                            setToMove
+                                        )
 
                                         // Update UI
-                                        fullItemList = fullItemList.filter { it.setId != setToMove.setId }
-                                        itemList = itemList.filter { it.setId != setToMove.setId }
+                                        fullItemList =
+                                            fullItemList.filter { it.setId != setToMove.setId }
+                                        itemList =
+                                            itemList.filter { it.setId != setToMove.setId }
 
                                         selectedSet = null
                                     }
@@ -596,6 +764,8 @@ fun SellScreen(
             }
         }
     }
+
+
 
     // Confirmation Dialog for Selling
     if (showConfirmSellDialog && selectedSet != null) {

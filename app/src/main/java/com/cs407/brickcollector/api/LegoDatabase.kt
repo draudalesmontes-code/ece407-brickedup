@@ -325,7 +325,22 @@ class LegoDatabase private constructor(private val context: Context) : SQLiteOpe
 
         return 0
     }
+    fun getSetById(setId: Int): LegoSet? {
+        val db = readableDatabase
 
+        val cursor = db.rawQuery(
+            "SELECT * FROM sets WHERE set_id = ?",
+            arrayOf(setId.toString())
+        )
+
+        cursor.use {
+            if (it.moveToFirst()) {
+                return cursorToLegoSet(it)
+            }
+        }
+
+        return null
+    }
     // Helper function to convert cursor to LegoSet
     private fun cursorToLegoSet(cursor: android.database.Cursor): LegoSet {
         return LegoSet(

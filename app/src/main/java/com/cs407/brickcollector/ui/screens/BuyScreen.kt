@@ -57,11 +57,14 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.cs407.brickcollector.R
+import com.cs407.brickcollector.api.LegoDatabase
 import com.cs407.brickcollector.models.LegoSet
 import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.brickcollector.models.UserViewModel
 import com.cs407.location.viewModels.LatlngToCity
 import com.cs407.location.viewModels.callLocationVM
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun BuyScreen(
@@ -92,7 +95,8 @@ fun BuyScreen(
     val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
     var selectedThemeFilter by remember { mutableStateOf("All") }
     val userFirestore = UserFirestore()
-
+    val legoPriceDb = remember { LegoDatabase.getInstance(context) }
+    var dbPrices by remember { mutableStateOf<Map<Int, Double>>(emptyMap()) }
     var marketItems by remember { mutableStateOf<List<UserFirestore.MarketSellEntry>>(emptyList()) }
 
     LaunchedEffect(userState.uid) {
@@ -118,7 +122,29 @@ fun BuyScreen(
             isLoading = false
         }
     }
+    LaunchedEffect(fullItemList) {
+        if (fullItemList.isNotEmpty()) {
+            val priceMap = mutableMapOf<Int, Double>()
 
+            withContext(Dispatchers.IO) {
+                fullItemList.forEach { set ->
+                    try {
+                        val dbSet = legoPriceDb.getSetById(set.setId)
+                        val basePrice = dbSet?.newPrice ?: dbSet?.usedPrice
+                        if (basePrice != null) {
+                            priceMap[set.setId] = basePrice
+                        }
+                    } catch (e: Exception) {
+                        Log.e("BuyScreen", "Error loading db price for ${set.setId}", e)
+                    }
+                }
+            }
+
+            dbPrices = priceMap
+        } else {
+            dbPrices = emptyMap()
+        }
+    }
 
     fun applyFiltersAndSearch() {
         var filtered = fullItemList
@@ -416,23 +442,29 @@ fun BuyScreen(
                                 modifier = Modifier.weight(1f)
                             )
 
+                            val (set, cityForCard) = pair
+                            val basePrice = dbPrices[set.setId]
+
                             Column(
                                 horizontalAlignment = Alignment.End
                             ) {
                                 Text(
-                                    text = "Asking Price",
+                                    text = "Asking price: $${String.format("%.2f", set.price)}",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
 
+                                if (basePrice != null) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "Price: $${String.format("%.2f", basePrice)}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+
                                 Spacer(modifier = Modifier.height(4.dp))
 
-
-                                Text(
-                                    text = "$${set.price}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
                                 Text(
                                     text = if (cityForCard != null)
                                         "Seller city: $cityForCard"
@@ -440,10 +472,8 @@ fun BuyScreen(
                                         "Seller: No city",
                                     style = MaterialTheme.typography.bodyMedium
                                 )
-
-                                Spacer(modifier = Modifier.height(4.dp))
-
                             }
+
                         }
                     }
                 }
@@ -546,7 +576,20 @@ fun BuyScreen(
                     Text("Set ID: ${selectedSet!!.setId}", style = MaterialTheme.typography.bodyLarge)
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    Text("Asking Price: $${selectedSet!!.price}", style = MaterialTheme.typography.bodyLarge)
+                    val basePriceForDialog = dbPrices[selectedSet!!.setId]
+
+                    Text("Asking Price: $${String.format("%.2f", selectedSet!!.price)}",
+                        style = MaterialTheme.typography.bodyLarge)
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text(
+                        text = "Database Price: " + (
+                                basePriceForDialog?.let { "$" + String.format("%.2f", it) } ?: "N/A"
+                                ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
 
                     Spacer(modifier = Modifier.height(24.dp))
                     Text(

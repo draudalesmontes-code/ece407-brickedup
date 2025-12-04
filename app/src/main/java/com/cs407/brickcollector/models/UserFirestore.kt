@@ -71,7 +71,43 @@ class UserFirestore {
                 onComplete(null)
             }
     }
+    fun updateSetPriceInSellList(userUid: String, updatedSet: LegoSet) {
+        firestore.collection("users").document(userUid)
+            .get()
+            .addOnSuccessListener { document ->
+                if (document != null && document.exists()) {
+                    val sellList = document.get("selllist") as? List<HashMap<String, Any>>
 
+                    if (sellList != null) {
+                        val newSellList = sellList.map { map ->
+                            val id = (map["setId"] as? Long)?.toInt()
+                            if (id == updatedSet.setId) {
+                                hashMapOf(
+                                    "name" to updatedSet.name,
+                                    "setId" to updatedSet.setId,
+                                    "price" to updatedSet.price,
+                                    "imageUrl" to (updatedSet.imageUrl ?: "")
+                                )
+                            } else {
+                                map
+                            }
+                        }
+
+                        firestore.collection("users").document(userUid)
+                            .update("selllist", newSellList)
+                            .addOnSuccessListener {
+                                Log.d(TAG, "updateSetPriceInSellList: price updated for setId=${updatedSet.setId}")
+                            }
+                            .addOnFailureListener { e ->
+                                Log.w(TAG, "updateSetPriceInSellList: FAILED to update selllist", e)
+                            }
+                    }
+                }
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "updateSetPriceInSellList: FAILED to load user document", e)
+            }
+    }
     /**
      * Get city of user
      */
