@@ -27,6 +27,7 @@ class UserFirestore {
             "uid" to user.uid,
             "name" to name,
             "city" to city,
+            "email" to (user.email ?: ""),
             // Initialize mylist, wantlist and selllist as empty lists
             "mylist" to emptyList<LegoSet>(),
             "wantlist" to emptyList<LegoSet>(),
@@ -55,6 +56,19 @@ class UserFirestore {
             .update("city", city)
             .addOnSuccessListener { Log.d(TAG, "City updated") }
             .addOnFailureListener { e -> Log.w(TAG, "Error updating city", e)
+            }
+    }
+
+    fun getEmail(userUid: String, onComplete: (String?) -> Unit) {
+        firestore.collection("users").document(userUid)
+            .get()
+            .addOnSuccessListener { document ->
+                val email = document.get("email") as? String
+                onComplete(email)
+            }
+            .addOnFailureListener { e ->
+                Log.w(TAG, "Error getting email for $userUid", e)
+                onComplete(null)
             }
     }
 
@@ -195,7 +209,7 @@ class UserFirestore {
         val sellerUid: String,
         val sellerCity: String?
     )
-    
+
     fun getBuyList(currentUserUid: String, onComplete: (List<MarketSellEntry>) -> Unit){
         firestore.collection("users")
             .get()

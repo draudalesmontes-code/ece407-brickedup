@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -90,7 +91,8 @@ fun MySetsScreen(
 
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
-
+    val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
+    var selectedThemeFilter by remember { mutableStateOf("All") }
     // Load My Sets from Firestore - only once
     LaunchedEffect(userState.uid) {
         if (userState.uid.isNotEmpty()) {
@@ -106,23 +108,50 @@ fun MySetsScreen(
             isLoading = false
         }
     }
+    fun formatPriceInput(input: String): String {
+        val clean = input.replace("$", "").trim()
+        return if (clean.isBlank()) "" else "$$clean"
+    }
+    fun parsePrice(input: String): Double? {
+        val clean = input.replace("$", "").trim()
+        return clean.toDoubleOrNull()
+    }
+
+
 
     fun applyFiltersAndSearch() {
-        var results = fullItemList
+        // Always start from the full list
+        var filtered = fullItemList
 
+        // Text search by name
         if (activeSearchQuery.isNotBlank()) {
-            results = results.filter { it.name.contains(activeSearchQuery, ignoreCase = true) }
+            filtered = filtered.filter {
+                it.name.contains(activeSearchQuery, ignoreCase = true)
+            }
         }
 
-        priceMin.toDoubleOrNull()?.let { min ->
-            results = results.filter { it.price >= min }
+        // Theme filter based on set name (Room LegoSet doesn't have theme field)
+        if (selectedThemeFilter != "All") {
+            filtered = filtered.filter { set ->
+                when (selectedThemeFilter) {
+                    "Harry Potter" -> set.name.contains("Harry Potter", ignoreCase = true)
+                    "Star Wars"    -> set.name.contains("Star Wars", ignoreCase = true)
+                    "Marvel"       -> set.name.contains("Marvel", ignoreCase = true)
+                    else           -> true
+                }
+            }
         }
 
-        priceMax.toDoubleOrNull()?.let { max ->
-            results = results.filter { it.price <= max }
+        // Numeric price filtering using parsed Doubles
+        parsePrice(priceMin)?.let { min ->
+            filtered = filtered.filter { it.price >= min }
         }
 
-        itemList = results
+        parsePrice(priceMax)?.let { max ->
+            filtered = filtered.filter { it.price <= max }
+        }
+
+        itemList = filtered
         currentPage = 1
     }
 
@@ -235,10 +264,12 @@ fun MySetsScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMin,
-                                    onValueChange = { priceMin = it },
+                                    onValueChange = { input -> priceMin = formatPriceInput(input) },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$0.00") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
                             }
 
@@ -254,13 +285,33 @@ fun MySetsScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMax,
-                                    onValueChange = { priceMax = it },
-                                    modifier = Modifier.weight(0.6f),
+                                    onValueChange = { input -> priceMax = formatPriceInput(input) },                                    modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$999.99") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
                             }
 
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Theme",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                themeOptions.forEach { option ->
+                                    Button(
+                                        onClick = { selectedThemeFilter = option },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = selectedThemeFilter != option
+                                    ) {
+                                        Text(option)
+                                    }
+                                }
+                            }
                             Button(
                                 onClick = { applyFiltersAndSearch() },
                                 modifier = Modifier.fillMaxWidth()
@@ -392,7 +443,7 @@ fun MySetsScreen(
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.5f)
+                    .fillMaxHeight(0.3f)
                     .padding(16.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
             ) {

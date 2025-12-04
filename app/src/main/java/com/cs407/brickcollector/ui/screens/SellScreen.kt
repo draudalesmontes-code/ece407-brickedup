@@ -50,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -93,6 +94,8 @@ fun SellScreen(
 
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
+    val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
+    var selectedThemeFilter by remember { mutableStateOf("All") }
 
     // Load Sell List and My Sets from Firestore - only once
     LaunchedEffect(userState.uid) {
@@ -123,6 +126,18 @@ fun SellScreen(
 
         if (activeSearchQuery.isNotBlank()) {
             results = results.filter { it.name.contains(activeSearchQuery, ignoreCase = true) }
+        }
+
+
+        if (selectedThemeFilter != "All") {
+            results = results.filter { set ->
+                when (selectedThemeFilter) {
+                    "Harry Potter" -> set.name.contains("Harry Potter", ignoreCase = true)
+                    "Star Wars" -> set.name.contains("Star Wars", ignoreCase = true)
+                    "Marvel" -> set.name.contains("Marvel", ignoreCase = true)
+                    else -> true
+                }
+            }
         }
 
         priceMin.toDoubleOrNull()?.let { min ->
@@ -266,10 +281,14 @@ fun SellScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMin,
-                                    onValueChange = { priceMin = it },
+                                    onValueChange = { input ->
+                                        priceMin = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$0.00") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
                             }
 
@@ -285,11 +304,34 @@ fun SellScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMax,
-                                    onValueChange = { priceMax = it },
+                                    onValueChange = { input ->
+                                        priceMax = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$999.99") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Theme",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                themeOptions.forEach { option ->
+                                    Button(
+                                        onClick = { selectedThemeFilter = option },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = selectedThemeFilter != option
+                                    ) {
+                                        Text(option)
+                                    }
+                                }
                             }
 
                             Button(

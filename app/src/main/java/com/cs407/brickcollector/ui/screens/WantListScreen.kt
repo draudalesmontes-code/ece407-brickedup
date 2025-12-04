@@ -21,6 +21,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -60,43 +61,83 @@ fun WantListScreen(
     var addSearchQuery by remember { mutableStateOf("") }
     var searchResults by remember { mutableStateOf<List<com.cs407.brickcollector.api.LegoSet>>(emptyList()) }
     var isSearching by remember { mutableStateOf(false) }
-
+    var allSqlSets by remember {
+        mutableStateOf<List<com.cs407.brickcollector.api.LegoSet>>(emptyList())
+    }
+    var fullItemList by remember { mutableStateOf<List<LegoSet>>(emptyList()) }
     val itemsPerPage = 7
     var currentPage by remember { mutableStateOf(1) }
 
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
+    val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
+    var selectedThemeFilter by remember { mutableStateOf("All") }
 
     // Load want list from Firestore
     LaunchedEffect(userState.uid) {
         if (userState.uid.isNotEmpty()) {
             userFirestore.getSetsFromWantList(userState.uid) { sets ->
-                itemList = sets ?: emptyList()
+                fullItemList = sets ?: emptyList()
+                itemList = fullItemList
                 isLoading = false
             }
         }
     }
 
-    fun applyFiltersAndSearch() {
-        var filtered = itemList
 
-        if (activeSearchQuery.isNotBlank()) {
-            filtered = filtered.filter {
-                it.name.contains(activeSearchQuery, ignoreCase = true)
+    LaunchedEffect(showAddDialog) {
+        if (showAddDialog) {
+            isSearching = true
+            val results = withContext(Dispatchers.IO) {
+                legoDatabase.getAllSets()
             }
+            allSqlSets = results
+            searchResults = results   // start by showing everything
+            isSearching = false
         }
-
-        priceMin.toDoubleOrNull()?.let { min ->
-            filtered = filtered.filter { it.price >= min }
-        }
-
-        priceMax.toDoubleOrNull()?.let { max ->
-            filtered = filtered.filter { it.price <= max }
-        }
-
-        itemList = filtered
-        currentPage = 1
     }
+
+    fun parsePrice(input: String): Double? {
+        val clean = input.replace("$", "").trim()
+        return clean.toDoubleOrNull()
+    }
+
+
+    fun applyFiltersAndSearch() {
+                // Always start from the full list
+                var filtered = fullItemList
+
+                // Text search by name
+                if (activeSearchQuery.isNotBlank()) {
+                        filtered = filtered.filter {
+                                it.name.contains(activeSearchQuery, ignoreCase = true)
+                            }
+                    }
+
+                // Theme filter based on set name (Room LegoSet doesn't have theme field)
+                if (selectedThemeFilter != "All") {
+                        filtered = filtered.filter { set ->
+                                when (selectedThemeFilter) {
+                                        "Harry Potter" -> set.name.contains("Harry Potter", ignoreCase = true)
+                                        "Star Wars"    -> set.name.contains("Star Wars", ignoreCase = true)
+                                        "Marvel"       -> set.name.contains("Marvel", ignoreCase = true)
+                                        else           -> true
+                                    }
+                            }
+                    }
+
+                // Numeric price filtering using parsed Doubles
+                parsePrice(priceMin)?.let { min ->
+                        filtered = filtered.filter { it.price >= min }
+                    }
+
+                parsePrice(priceMax)?.let { max ->
+                        filtered = filtered.filter { it.price <= max }
+                    }
+
+                itemList = filtered
+                currentPage = 1
+           }
 
     val totalPages = remember(itemList, itemsPerPage) {
         ((itemList.size + itemsPerPage - 1) / itemsPerPage).coerceAtLeast(1)
@@ -228,10 +269,14 @@ fun WantListScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMin,
-                                    onValueChange = { priceMin = it },
+                                    onValueChange = { input ->
+                                        priceMin = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$0.00") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
                             }
 
@@ -247,12 +292,38 @@ fun WantListScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMax,
-                                    onValueChange = { priceMax = it },
+                                    onValueChange = { input ->
+                                        priceMax = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$999.99") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
+
                                 )
                             }
+                            Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                        text = "Theme",
+                                        style = MaterialTheme.typography.bodyMedium
+                                            )
+                               Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                            ) {
+                                        themeOptions.forEach { option ->
+                                                Button(
+                                                        onClick = { selectedThemeFilter = option },
+                                                        modifier = Modifier.weight(1f),
+                                                        enabled = selectedThemeFilter != option
+                                                            ) {
+                                                        Text(option)
+                                                    }
+                                            }
+                                    }
+
+
 
                             Button(
                                 onClick = { applyFiltersAndSearch() },
@@ -260,6 +331,7 @@ fun WantListScreen(
                             ) {
                                 Text("Apply Filters")
                             }
+
                         }
                     }
                 }
@@ -370,7 +442,7 @@ fun WantListScreen(
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.6f)
+                    .fillMaxHeight(0.3f)
                     .padding(16.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
             ) {
@@ -456,6 +528,7 @@ fun WantListScreen(
 
                                         // Update UI
                                         itemList = itemList.filter { it.setId != setToMove.setId }
+                                        fullItemList = fullItemList.filter { it.setId != setToMove.setId }
 
                                         selectedSet = null
                                     }
@@ -547,7 +620,19 @@ fun WantListScreen(
                     ) {
                         OutlinedTextField(
                             value = addSearchQuery,
-                            onValueChange = { addSearchQuery = it },
+                            onValueChange = { query ->
+                                addSearchQuery = query
+
+                                searchResults = if (query.isBlank()) {
+                                    allSqlSets
+                                } else {
+                                    val q = query.trim()
+                                    allSqlSets.filter { sqlSet ->
+                                        sqlSet.name.contains(q, ignoreCase = true) ||
+                                                sqlSet.setNumber.contains(q, ignoreCase = true)
+                                    }
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                             placeholder = { Text("Enter set name or number") },
                             singleLine = true
@@ -624,6 +709,7 @@ fun WantListScreen(
 
                                                 // Update UI
                                                 itemList = itemList + newSet
+                                                fullItemList = fullItemList + newSet
 
                                                 android.util.Log.d("WantListScreen", "Added set: ${newSet.name} (ID: ${newSet.setId})")
 
@@ -667,13 +753,18 @@ fun WantListScreen(
                                         }
 
                                         Column(horizontalAlignment = Alignment.End) {
-                                            sqlSet.newPrice?.let {
+                                            val displayPrice = when {
+                                                sqlSet.newPrice != null -> sqlSet.newPrice
+                                                sqlSet.usedPrice != null -> sqlSet.usedPrice
+                                                else -> 0.0
+                                            }
+
                                                 Text(
-                                                    text = "$$it",
+                                                    text = "$${"%.2f".format(displayPrice)}",
                                                     style = MaterialTheme.typography.titleMedium,
                                                     color = MaterialTheme.colorScheme.primary
                                                 )
-                                            }
+
                                         }
                                     }
                                 }
@@ -684,4 +775,5 @@ fun WantListScreen(
             }
         }
     }
+
 }

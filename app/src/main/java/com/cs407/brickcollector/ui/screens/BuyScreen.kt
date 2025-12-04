@@ -1,6 +1,7 @@
 package com.cs407.brickcollector.ui.screens
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -46,8 +47,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -73,6 +77,7 @@ fun BuyScreen(
     var activeSearchQuery by remember { mutableStateOf("") }
     var showFilterWidget by remember { mutableStateOf(false) }
     var selectedSet by remember { mutableStateOf<LegoSet?>(null) }
+    var selectedCity by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val geoKey = remember { context.getString(R.string.geoapify_api_key) }
 
@@ -83,7 +88,9 @@ fun BuyScreen(
 
     var priceMin by remember { mutableStateOf("") }
     var priceMax by remember { mutableStateOf("") }
-
+    val clipboardManager = LocalClipboardManager.current
+    val themeOptions = listOf("All", "Harry Potter", "Star Wars", "Marvel")
+    var selectedThemeFilter by remember { mutableStateOf("All") }
     val userFirestore = UserFirestore()
 
     var marketItems by remember { mutableStateOf<List<UserFirestore.MarketSellEntry>>(emptyList()) }
@@ -112,12 +119,25 @@ fun BuyScreen(
         }
     }
 
+
     fun applyFiltersAndSearch() {
         var filtered = fullItemList
 
         if (activeSearchQuery.isNotBlank()) {
             filtered = filtered.filter { it.name.contains(activeSearchQuery, ignoreCase = true) }
         }
+
+        if (selectedThemeFilter != "All") {
+            filtered = filtered.filter { set ->
+                when (selectedThemeFilter) {
+                    "Harry Potter" -> set.name.contains("Harry Potter", ignoreCase = true)
+                    "Star Wars" -> set.name.contains("Star Wars", ignoreCase = true)
+                    "Marvel" -> set.name.contains("Marvel", ignoreCase = true)
+                    else -> true
+                }
+            }
+        }
+
 
         priceMin.toDoubleOrNull()?.let { min ->
             filtered = filtered.filter { it.price >= min }
@@ -146,11 +166,17 @@ fun BuyScreen(
             }
         }
 
-        if (userCity == null) {
+        if (userCity.isNullOrBlank()) {
             flat
         } else {
+            val normalizedUserCity = userCity!!.trim().lowercase()
+
             flat.sortedByDescending { (_, sellerCity) ->
-                sellerCity != null && sellerCity.equals(userCity, ignoreCase = true)
+                val normalizedSellerCity = sellerCity?.trim()?.lowercase()
+                normalizedSellerCity != null &&
+                        (normalizedSellerCity == normalizedUserCity ||
+                                normalizedSellerCity.contains(normalizedUserCity) ||
+                                normalizedUserCity.contains(normalizedSellerCity))
             }
         }
     }
@@ -264,10 +290,14 @@ fun BuyScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMin,
-                                    onValueChange = { priceMin = it },
+                                    onValueChange = { input ->
+                                        priceMin = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$0.00") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number)
                                 )
                             }
 
@@ -283,11 +313,37 @@ fun BuyScreen(
                                 )
                                 OutlinedTextField(
                                     value = priceMax,
-                                    onValueChange = { priceMax = it },
+                                    onValueChange = { input ->
+                                        priceMax = input.filter { it.isDigit() || it == '.' }
+                                    },
                                     modifier = Modifier.weight(0.6f),
                                     placeholder = { Text("$999.99") },
-                                    singleLine = true
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done,
+                                        keyboardType = KeyboardType.Number
+
+                                    )
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "Theme",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                themeOptions.forEach { option ->
+                                    Button(
+                                        onClick = { selectedThemeFilter = option },
+                                        modifier = Modifier.weight(1f),
+                                        enabled = selectedThemeFilter != option
+                                    ) {
+                                        Text(option)
+                                    }
+                                }
                             }
 
                             Button(
@@ -334,7 +390,8 @@ fun BuyScreen(
                     ElevatedCard(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { selectedSet = set },
+                            .clickable { selectedSet = set
+                                selectedCity = cityForCard},
                         elevation = CardDefaults.elevatedCardElevation(defaultElevation = 4.dp)
                     ) {
 
@@ -370,6 +427,12 @@ fun BuyScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
+
+                                Text(
+                                    text = "$${set.price}",
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
                                 Text(
                                     text = if (cityForCard != null)
                                         "Seller city: $cityForCard"
@@ -380,11 +443,6 @@ fun BuyScreen(
 
                                 Spacer(modifier = Modifier.height(4.dp))
 
-                                Text(
-                                    text = "$${set.price}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
                             }
                         }
                     }
@@ -430,13 +488,14 @@ fun BuyScreen(
 
     if (selectedSet != null) {
         Dialog(
-            onDismissRequest = { selectedSet = null },
+            onDismissRequest = {  selectedSet = null
+                selectedCity = null },
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             ElevatedCard(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.5f)
+                    .fillMaxHeight(0.3f)
                     .padding(16.dp),
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp)
             ) {
@@ -470,7 +529,8 @@ fun BuyScreen(
                             )
                         }
 
-                        IconButton(onClick = { selectedSet = null }) {
+                        IconButton(onClick = { selectedSet = null
+                            selectedCity = null}) {
                             Icon(
                                 Icons.Default.Close,
                                 contentDescription = "Close",
@@ -489,9 +549,56 @@ fun BuyScreen(
                     Text("Asking Price: $${selectedSet!!.price}", style = MaterialTheme.typography.bodyLarge)
 
                     Spacer(modifier = Modifier.height(24.dp))
+                    Text(
+                        text = "Seller city: ${selectedCity ?: "Not available"}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
 
                     Button(
-                        onClick = { /* TODO: Contact seller logic */ },
+                        onClick = {
+                            val currentSet = selectedSet
+                            if (currentSet != null) {
+                                // Try to find the matching seller entry for this set (and city if known)
+                                val matchingEntries = marketItems.filter { it.set.setId == currentSet.setId }
+                                val entry = if (selectedCity != null) {
+                                    matchingEntries.firstOrNull { it.sellerCity == selectedCity }
+                                } else {
+                                    matchingEntries.firstOrNull()
+                                }
+
+                                val sellerUidForEntry = entry?.sellerUid
+
+                                if (!sellerUidForEntry.isNullOrBlank()) {
+                                    // Fetch email from Firestore, then copy to clipboard
+                                    userFirestore.getEmail(sellerUidForEntry) { sellerEmail ->
+                                        if (!sellerEmail.isNullOrBlank()) {
+                                            clipboardManager.setText(AnnotatedString(sellerEmail))
+                                            Toast.makeText(
+                                                context,
+                                                "Seller email copied to clipboard",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        } else {
+                                            Toast.makeText(
+                                                context,
+                                                "Seller email not available",
+                                                Toast.LENGTH_SHORT
+                                            ).show()
+                                        }
+                                    }
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Seller email not found for this listing",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+
+                            }
+
+                        },
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text("Contact Seller")

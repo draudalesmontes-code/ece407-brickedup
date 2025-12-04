@@ -42,6 +42,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -53,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -64,19 +66,21 @@ import com.google.firebase.Firebase
 import com.google.firebase.auth.auth
 import kotlinx.coroutines.launch
 import com.cs407.brickcollector.models.UserState
+import com.cs407.location.viewModels.callLocationVM
 
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     currentUser: UserState?,
+    vm: callLocationVM,
     onBack: () -> Unit = {},
     onLogout: () -> Unit = {},
     onDeleteAccount: () -> Unit = {}
 ) {
     var isEditing by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
-
+    var city by remember { mutableStateOf("") }
     // User profile state
     var username by remember { mutableStateOf("") }
     var setsOwned by remember { mutableStateOf("0") }
@@ -90,7 +94,12 @@ fun SettingsScreen(
     var expanded by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val userFirestore = remember { UserFirestore() }
+    var editedCity by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
+    var showCityDialog by remember { mutableStateOf(false) }
+    var detectedCity by remember { mutableStateOf<String?>(null) }
+    var hasAskedForCity by remember { mutableStateOf(false) }
     // Fetch user profile and stats on load
     LaunchedEffect(currentUser?.uid) {
         val firebaseUser = Firebase.auth.currentUser
@@ -112,6 +121,11 @@ fun SettingsScreen(
                         totalEarned = String.format("$%.2f", stats.totalEarned)
                     }
                     isLoading = false
+                }
+                userFirestore.getCity(currentUser.uid) { storedCity ->
+                    val cleaned = if (storedCity == null || storedCity == "none") "" else storedCity
+                    city = cleaned
+                    editedCity = cleaned
                 }
             } else {
                 isLoading = false
@@ -165,12 +179,24 @@ fun SettingsScreen(
                         onClick = {
                             if (isEditing) {
                                 // Save changes
-                                if (ApiService.updateUserProfile(editedUsername)) {
+                                val updated = ApiService.updateUserProfile(editedUsername)
+                                val newCityForStorage = editedCity.ifBlank { "none" }
+
+                                if (currentUser?.uid?.isNotEmpty() == true) {
+                                    userFirestore.updateCity(currentUser.uid, newCityForStorage)
+                                }
+
+                                if (updated) {
                                     username = editedUsername
+                                    // Keep UI pretty: hide "none" and show blank instead
+                                    city = if (newCityForStorage == "none") "" else newCityForStorage
                                     isEditing = false
                                 }
+
                             } else {
-                                // Enter edit mode
+                                editedUsername = username
+                                editedCity = city
+                                hasAskedForCity = false
                                 isEditing = true
                             }
                         }
@@ -263,11 +289,45 @@ fun SettingsScreen(
                                     singleLine = true,
                                     modifier = Modifier.fillMaxWidth()
                                 )
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                OutlinedTextField(
+                                    value = editedCity,
+                                    onValueChange = { newValue ->
+                                        val wasBlank = editedCity.isBlank()
+                                        editedCity = newValue
+
+                                        // First time they type into a blank city -> offer current location
+                                        if (wasBlank && newValue.isNotBlank() && !hasAskedForCity) {
+                                            hasAskedForCity = true
+                                            scope.launch {
+                                                val geoKey = context.getString(R.string.geoapify_api_key)
+                                                val currentCity = vm.resolveCityAssumingPermission(
+                                                    appContext = context.applicationContext,
+                                                    geoapifyApiKey = geoKey
+                                                )
+                                                if (!currentCity.isNullOrBlank()) {
+                                                    detectedCity = currentCity
+                                                    showCityDialog = true
+                                                }
+                                            }
+                                        }
+                                    },
+                                    label = { Text("City / Location") },
+                                    singleLine = true,
+                                    modifier = Modifier.fillMaxWidth()
+                                )
                             } else {
                                 Text(
                                     text = username,
                                     style = MaterialTheme.typography.headlineSmall,
                                     fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "City: ${if (city.isBlank()) "None" else city}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -381,6 +441,37 @@ fun SettingsScreen(
                 }
             }
         }
+    }
+    if (showCityDialog && !detectedCity.isNullOrBlank()) {
+        AlertDialog(
+            onDismissRequest = { showCityDialog = false },
+            title = { Text("Use current city?") },
+            text = {
+                Text("We detected your current city as \"${detectedCity}\". Do you want to use this for your profile?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        // Autofill and close
+                        editedCity = detectedCity ?: editedCity
+                        city = detectedCity ?: city
+                        showCityDialog = false
+                    }
+                ) {
+                    Text("Yes")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        // Let the user keep what they typed
+                        showCityDialog = false
+                    }
+                ) {
+                    Text("No")
+                }
+            }
+        )
     }
 
     if (showDeleteConfirmDialog) {

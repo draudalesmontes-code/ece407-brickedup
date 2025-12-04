@@ -234,7 +234,8 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                         navController.navigate("my_sets") {
                             popUpTo("login") { inclusive = true }
                         }
-                    }
+                    },
+                    vm = vm
                 )
             }
             composable("my_sets") {
@@ -271,6 +272,7 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
 
                 SettingsScreen(
                     currentUser = currentUser,
+                    vm = vm,
                     onBack = { navController.popBackStack() },
                     onLogout = {
                         FirebaseAuth.getInstance().signOut()
@@ -340,6 +342,10 @@ fun AppNavigation(vm: callLocationVM, userViewModel: UserViewModel = viewModel()
                             legoDb.getSetByUPC(scannedValue)
                         }
 
+                        Log.d(
+                            "LegoTest",
+                            "Scanned=$scannedValue name=${set?.name} newPrice=${set?.newPrice} usedPrice=${set?.usedPrice}"
+                        )
                         if (set != null && userState.id != 0 && userState.uid.isNotEmpty()) {
                             val roomSet = com.cs407.brickcollector.models.LegoSet(
                                 name = set.name,

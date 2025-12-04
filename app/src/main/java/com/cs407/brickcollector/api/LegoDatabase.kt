@@ -47,6 +47,13 @@ class LegoDatabase private constructor(private val context: Context) : SQLiteOpe
 
     private fun copyDatabaseFromAssets() {
         val dbPath = context.getDatabasePath(DATABASE_NAME)
+        if (dbPath.exists()) {
+            android.util.Log.d(
+                "LegoDatabase",
+                "DEV: deleting existing database (${dbPath.length()} bytes) at ${dbPath.absolutePath}"
+            )
+            dbPath.delete()
+        }
 
         // Check the source file size in assets
         try {

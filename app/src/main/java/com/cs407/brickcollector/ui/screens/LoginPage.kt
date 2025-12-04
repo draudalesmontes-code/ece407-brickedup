@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -35,6 +36,7 @@ import com.cs407.brickcollector.models.UserDatabase
 import com.cs407.brickcollector.models.User
 import com.cs407.brickcollector.models.UserFirestore
 import com.cs407.brickcollector.models.UserState
+import com.cs407.location.viewModels.callLocationVM
 import kotlinx.coroutines.runBlocking
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
@@ -184,7 +186,7 @@ fun updateName(name: String, onComplete: (Boolean, Exception?) -> Unit) {
 
 @Composable
 fun LoginPage(
-    modifier: Modifier = Modifier, loginButtonClick: (UserState) -> Unit
+    modifier: Modifier = Modifier, loginButtonClick: (UserState) -> Unit, vm: callLocationVM
 ) {
     var currentPage by remember { mutableStateOf("login") } // "login" or "signup"
     val auth = Firebase.auth
@@ -219,7 +221,8 @@ fun LoginPage(
             } else {
                 SignUpScreen(
                     onSignUpSuccess = loginButtonClick,
-                    onNavigateToLogin = { currentPage = "login" }
+                    onNavigateToLogin = { currentPage = "login" },
+                    vm = vm
                 )
             }
         }
@@ -229,7 +232,8 @@ fun LoginPage(
 @Composable
 fun SignUpScreen (
     onSignUpSuccess: (UserState) -> Unit,
-    onNavigateToLogin: () -> Unit
+    onNavigateToLogin: () -> Unit,
+    vm: callLocationVM
 ) {
     var email by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
@@ -243,6 +247,9 @@ fun SignUpScreen (
     val context = LocalContext.current
     val db = UserDatabase.getDatabase(context)
     val coroutineScope = rememberCoroutineScope()
+    var showCityDialog by remember { mutableStateOf(false) }
+    var detectedCity by remember { mutableStateOf<String?>(null) }
+    var hasAskedForCity by remember { mutableStateOf(false) }
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -253,7 +260,33 @@ fun SignUpScreen (
 
         OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text(stringResource(R.string.signup_email)) })
         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.signup_name)) })
-        OutlinedTextField(value = city, onValueChange = { city = it }, label = { Text(stringResource(R.string.signup_city)) })
+        OutlinedTextField(
+            value = city,
+            onValueChange = { newValue ->
+                val wasBlank = city.isBlank()
+                city = newValue
+
+                // First time user starts typing in a blank city -> ask if they want current city
+                if (wasBlank && newValue.isNotBlank() && !hasAskedForCity) {
+                    hasAskedForCity = true
+                    showCityDialog = true
+
+                    coroutineScope.launch {
+                        val geoKey = context.getString(R.string.geoapify_api_key)
+                        val currentCity = vm.resolveCityAssumingPermission(
+                            appContext = context.applicationContext,
+                            geoapifyApiKey = geoKey
+                        )
+                        if (!currentCity.isNullOrBlank()) {
+                            detectedCity = currentCity
+                            showCityDialog = true
+                        }
+                    }
+                }
+            },
+            label = { Text(stringResource(R.string.signup_city)) }
+        )
+
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
@@ -306,16 +339,24 @@ fun SignUpScreen (
                     if (isSuccess && firebaseUser != null) {
                         updateName(name) { nameSuccess, nameException ->
                             if (nameSuccess) {
+                                val finalCity = if (city.isBlank()) "none" else city
                                 // store user's name and city in firestore
                                 userFirestore.saveUserToFireStore(
                                     user = firebaseUser,
                                     name = name,
-                                    city = city.ifBlank { null }
+                                    city = finalCity
                                 ) { firestoreSuccess, firestoreException ->
                                     if (firestoreSuccess) {
                                         coroutineScope.launch {
                                             // Storing the new user in Room DB
-                                            db.userDao().insert(User(userUID = firebaseUser.uid, username = name, city = city.ifBlank{null}))
+                                            db.userDao().insert(
+                                                User(
+                                                    userUID = firebaseUser.uid,
+                                                    username = name,
+                                                    city = finalCity
+                                                )
+                                            )
+
                                             val user = db.userDao().getByUID(firebaseUser.uid)
                                             onSignUpSuccess(UserState(user!!.userId, name, firebaseUser.uid))
                                         }
@@ -343,6 +384,53 @@ fun SignUpScreen (
 
         TextButton(onClick = onNavigateToLogin) {
             Text(stringResource(R.string.to_login_button))
+        }
+        if (showCityDialog) {
+            AlertDialog(
+                onDismissRequest = { showCityDialog = false },
+                title = { Text("Use current city?") },
+                text = {
+                    if (!detectedCity.isNullOrBlank()) {
+                        Text("We detected your current city as \"${detectedCity}\". Do you want to use this for your profile?")
+                    } else {
+                        Text("We couldn't automatically detect your current city. You can type it in manually, or tap Yes to try again.")
+                    }
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (!detectedCity.isNullOrBlank()) {
+                                city = detectedCity!!
+                            } else {
+                                // Optional: try one more time to detect city
+                                coroutineScope.launch {
+                                    val geoKey = context.getString(R.string.geoapify_api_key)
+                                    val currentCity = vm.resolveCityAssumingPermission(
+                                        appContext = context.applicationContext,
+                                        geoapifyApiKey = geoKey
+                                    )
+                                    if (!currentCity.isNullOrBlank()) {
+                                        city = currentCity
+                                    }
+                                }
+                            }
+                            showCityDialog = false
+                        }
+                    ) {
+                        Text("Yes")
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = {
+                            // User wants to keep / edit their own city
+                            showCityDialog = false
+                        }
+                    ) {
+                        Text("No")
+                    }
+                }
+            )
         }
     }
 }
