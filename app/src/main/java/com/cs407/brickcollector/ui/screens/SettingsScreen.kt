@@ -127,6 +127,10 @@ fun SettingsScreen(
                     city = cleaned
                     editedCity = cleaned
                 }
+                userFirestore.getSetsFromMyList(currentUser.uid) { sets ->
+                                  val count = sets?.size ?: 0
+                                   setsOwned = count.toString()
+                }
             } else {
                 isLoading = false
             }
