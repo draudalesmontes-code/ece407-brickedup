@@ -209,7 +209,6 @@ class LegoDatabase:
     
     #helper method to see stats
     def get_stats(self):
-        """Get database statistics"""
         self.cursor.execute('SELECT COUNT(*) FROM sets')
         total = self.cursor.fetchone()[0]
         
@@ -219,7 +218,6 @@ class LegoDatabase:
         return {'total_sets': total, 'total_themes': themes}
     
     def close(self):
-        """Close database connection"""
         self.conn.commit()
         self.conn.close()
 
@@ -242,7 +240,6 @@ def load_themes_from_file(filename='lego_themes.txt', test_mode=False):
     return themes
 
 def fetch_all_sets(test_mode=False):
-    """Fetch all sets from selected themes and store in database"""
     print("=" * 70)
     
     #testing mode
